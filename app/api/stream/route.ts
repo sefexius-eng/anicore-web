@@ -45,9 +45,11 @@ type RougeEpisodesResponse = {
 
 type RougeSource = {
   url?: string;
+  file?: string;
 };
 
 type RougeEpisodeSrcsResponse = {
+  file?: string;
   sources?: RougeSource[];
   data?: {
     sources?: RougeSource[];
@@ -295,30 +297,30 @@ export async function GET(request: NextRequest) {
       throw new Error("Rouge episodes returned no episodeId");
     }
 
-    const streamUrl = `${ROUGE_EPISODE_SRCS_ENDPOINT}?id=${encodeURIComponent(episodeId)}&server=vidstreaming&category=sub`;
-    console.log(`[stream] rouge stream url: ${streamUrl}`);
+    const episodeSrcsUrl = `${ROUGE_EPISODE_SRCS_ENDPOINT}?id=${encodeURIComponent(episodeId)}&server=vidstreaming&category=sub`;
+    console.log(`[stream] rouge stream url: ${episodeSrcsUrl}`);
 
-    const streamPayload = await fetchJson<RougeEpisodeSrcsResponse>(streamUrl);
+    const streamData = await fetchJson<RougeEpisodeSrcsResponse>(episodeSrcsUrl);
+    console.log("Rouge API Stream Data:", JSON.stringify(streamData));
     console.log(
-      `[stream] Rouge API Stream Result: ${safeJsonStringify(streamPayload)}`,
+      `[stream] Rouge API Stream Result: ${safeJsonStringify(streamData)}`,
     );
 
-    const sources = extractRougeSources(streamPayload);
-    const source =
-      sources.find(
-        (streamSource) =>
-          typeof streamSource.url === "string" &&
-          streamSource.url.toLowerCase().includes(".m3u8"),
-      ) ?? sources.find((streamSource) => typeof streamSource.url === "string");
+    const streamUrl =
+      streamData?.sources?.[0]?.url ||
+      streamData?.sources?.[0]?.file ||
+      streamData?.file ||
+      streamData?.data?.sources?.[0]?.url;
 
-    if (!source?.url) {
+    if (!streamUrl) {
+      console.error("Stream URL not found in response");
       throw new Error("Rouge stream response has no playable source url");
     }
 
-    console.log(`[stream] rouge stream resolved: ${source.url}`);
+    console.log(`[stream] rouge stream resolved: ${streamUrl}`);
 
     return NextResponse.json({
-      stream: source.url,
+      stream: streamUrl,
     });
   } catch (error) {
     console.log(`[stream] route failed: ${getProviderErrorMessage(error)}`);
