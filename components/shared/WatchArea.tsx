@@ -16,6 +16,8 @@ const ROUGE_EPISODE_SRCS_ENDPOINT =
 const TEARS_OF_STEEL_STREAM =
   "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8";
 
+const proxyUrl = (url: string) => "https://corsproxy.io/?" + encodeURIComponent(url);
+
 interface WatchAreaProps {
   malId: number | string;
   totalEpisodes: number;
@@ -167,7 +169,9 @@ export function WatchArea({ malId, totalEpisodes }: WatchAreaProps) {
 
         for (const title of titleQueries) {
           const searchResponse = await fetch(
-            `${ROUGE_SEARCH_ENDPOINT}?keyword=${encodeURIComponent(title)}`,
+            proxyUrl(
+              `${ROUGE_SEARCH_ENDPOINT}?keyword=${encodeURIComponent(title)}`,
+            ),
             {
               method: "GET",
               cache: "no-store",
@@ -194,7 +198,7 @@ export function WatchArea({ malId, totalEpisodes }: WatchAreaProps) {
         }
 
         const episodesResponse = await fetch(
-          `${ROUGE_EPISODES_ENDPOINT}/${encodeURIComponent(cleanId)}`,
+          proxyUrl(`${ROUGE_EPISODES_ENDPOINT}/${encodeURIComponent(cleanId)}`),
           {
             method: "GET",
             cache: "no-store",
@@ -217,7 +221,9 @@ export function WatchArea({ malId, totalEpisodes }: WatchAreaProps) {
         }
 
         const streamResponse = await fetch(
-          `${ROUGE_EPISODE_SRCS_ENDPOINT}?id=${encodeURIComponent(episodeId)}&server=vidstreaming&category=sub`,
+          proxyUrl(
+            `${ROUGE_EPISODE_SRCS_ENDPOINT}?id=${encodeURIComponent(episodeId)}&server=vidstreaming&category=sub`,
+          ),
           {
             method: "GET",
             cache: "no-store",
