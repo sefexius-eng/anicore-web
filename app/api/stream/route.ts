@@ -7,7 +7,7 @@ const JIKAN_ANIME_ENDPOINT = "https://api.jikan.moe/v4/anime";
 const TEST_STREAM_URL =
   "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8";
 
-const consumet = new ANIME.Gogoanime();
+const consumet = new ANIME.Gogoanime("https://anitaku.pe");
 
 type JikanAnimeResponse = {
   data?: {
@@ -157,14 +157,16 @@ export async function GET(request: NextRequest) {
       `${JIKAN_ANIME_ENDPOINT}/${malId}`,
     );
 
-    const title =
-      jikanPayload.data?.title_english?.trim() || jikanPayload.data?.title?.trim();
+    const titleRomaji = jikanPayload?.data?.title?.trim() || "";
+    const titleEnglish = jikanPayload?.data?.title_english?.trim() || "";
+    const title = titleRomaji || titleEnglish;
 
     if (!title) {
       throw new Error("Failed to resolve anime title from Jikan");
     }
 
-    console.log(`[stream] jikan title: ${title}`);
+    console.log(`[stream] jikan title romaji: ${titleRomaji || "empty"}`);
+    console.log(`[stream] jikan title english: ${titleEnglish || "empty"}`);
 
     const normalizedTitle = normalizeTitle(title);
 
@@ -174,20 +176,33 @@ export async function GET(request: NextRequest) {
 
     console.log(`[stream] normalized title: ${normalizedTitle}`);
 
-    let searchResults = (await consumet.search(
-      normalizedTitle,
-    )) as ParserSearchResponse;
-    console.log(
-      `[stream] parser search results (normalized): ${safeJsonStringify(searchResults)}`,
+    const searchQueries = [titleRomaji, titleEnglish, normalizedTitle].filter(
+      (query, index, arr) => query.length > 0 && arr.indexOf(query) === index,
     );
 
-    if (!searchResults.results?.length) {
-      console.log(`[stream] parser fallback search query: ${title}`);
-      searchResults = (await consumet.search(title)) as ParserSearchResponse;
+    let searchResults: ParserSearchResponse = { results: [] };
+    let selectedQuery = "";
+
+    for (const query of searchQueries) {
+      console.log(`[stream] parser search query: ${query}`);
+      const currentSearchResults = (await consumet.search(query)) as ParserSearchResponse;
       console.log(
-        `[stream] parser search results (original): ${safeJsonStringify(searchResults)}`,
+        `[stream] parser search results (${query}): ${safeJsonStringify(currentSearchResults)}`,
       );
+
+      if (currentSearchResults.results?.length) {
+        searchResults = currentSearchResults;
+        selectedQuery = query;
+        console.log(`[stream] parser search matched with query: ${query}`);
+        break;
+      }
     }
+
+    if (!searchResults.results?.length) {
+      throw new Error("Parser search returned empty results for all query variants");
+    }
+
+    console.log(`[stream] parser selected query: ${selectedQuery}`);
 
     const animeId = searchResults.results?.[0]?.id?.trim() || null;
 
