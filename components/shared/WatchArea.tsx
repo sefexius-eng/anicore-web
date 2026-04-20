@@ -6,12 +6,9 @@ interface WatchAreaProps {
   malId: number | string;
 }
 
-interface KodikSearchResult {
+interface KodikPlayerResponse {
   link?: string;
-}
-
-interface KodikSearchResponse {
-  results?: KodikSearchResult[];
+  error?: string;
 }
 
 export function WatchArea({ malId }: WatchAreaProps) {
@@ -28,32 +25,18 @@ export function WatchArea({ malId }: WatchAreaProps) {
       setIframeSrc(null);
 
       try {
-        // Replace YOUR_KODIK_TOKEN with the real Kodik API token.
-        const url = `https://kodik-api.com/search?token=YOUR_KODIK_TOKEN&shikimori_id=${malId}`;
-
-        const response = await fetch(url, {
+        const response = await fetch(`/api/kodik?malId=${encodeURIComponent(String(malId))}`, {
           method: "GET",
           signal: controller.signal,
         });
 
-        if (!response.ok) {
-          throw new Error(`Kodik API request failed with status ${response.status}.`);
+        const data = (await response.json()) as KodikPlayerResponse;
+
+        if (!response.ok || !data.link) {
+          throw new Error(data.error ?? `Kodik proxy request failed with status ${response.status}.`);
         }
 
-        const data = (await response.json()) as KodikSearchResponse;
-
-        if (!Array.isArray(data.results) || data.results.length === 0) {
-          throw new Error("Kodik API returned no results.");
-        }
-
-        const item = data.results[0];
-
-        if (!item?.link) {
-          throw new Error("Kodik API result does not contain a link.");
-        }
-
-        const playerUrl = `https:${item.link}`;
-        const iframeSrc = `${playerUrl}?translations=false`; // Change to true to show the translation menu.
+        const iframeSrc = `https:${data.link}?translations=false`;
 
         setIframeSrc(iframeSrc);
       } catch (error) {
