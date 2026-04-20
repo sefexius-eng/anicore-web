@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 const JIKAN_ANIME_ENDPOINT = "https://api.jikan.moe/v4/anime";
 const TEST_STREAM_URL = "https://test-streams.mux.dev/bbb-360p/bbb-360p.m3u8";
 
-const gogoanime = new ANIME.Gogoanime();
+const hianime = new ANIME.Hianime();
 
 type JikanAnimeResponse = {
   data?: {
@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[stream] normalized title: ${normalizedTitle}`);
 
-    const searchResults = (await gogoanime.search(
+    const searchResults = (await hianime.search(
       normalizedTitle,
     )) as ParserSearchResponse;
     console.log(
@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[stream] parser anime id: ${animeId}`);
 
-    const animeInfo = (await gogoanime.fetchAnimeInfo(animeId)) as ParserAnimeInfo;
+    const animeInfo = (await hianime.fetchAnimeInfo(animeId)) as ParserAnimeInfo;
     console.log(`[stream] parser anime info: ${safeJsonStringify(animeInfo)}`);
 
     const episodeId = resolveEpisodeId(animeInfo.episodes, episodeNumber);
@@ -198,7 +198,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[stream] parser episode id: ${episodeId}`);
 
-    const streamLinks = (await gogoanime.fetchEpisodeSources(
+    const streamLinks = (await hianime.fetchEpisodeSources(
       episodeId,
     )) as ParserSourcesResponse;
     console.log(`[stream] parser stream links: ${safeJsonStringify(streamLinks)}`);
