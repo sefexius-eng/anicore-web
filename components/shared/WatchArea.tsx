@@ -25,7 +25,7 @@ export function WatchArea({ malId }: WatchAreaProps) {
       setIframeSrc(null);
 
       try {
-        const response = await fetch(`/api/kodik?malId=${encodeURIComponent(String(malId))}`, {
+        const response = await fetch("/api/kodik?malId=" + malId, {
           method: "GET",
           signal: controller.signal,
         });

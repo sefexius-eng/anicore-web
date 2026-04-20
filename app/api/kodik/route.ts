@@ -25,13 +25,20 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const token = process.env.KODIK_TOKEN || "56a768d08f43091901c44b54fe970049";
+
+    if (!process.env.KODIK_TOKEN) {
+      console.warn("[kodik] Using public fallback token; set KODIK_TOKEN in the environment.");
+    }
+
     const response = await fetch(
-      `https://kodikapi.com/search?token=${process.env.KODIK_TOKEN || "test_token"}&shikimori_id=${malId}`,
+      `https://kodik-api.com/search?token=${token}&shikimori_id=${malId}`,
       {
         method: "GET",
         cache: "no-store",
         headers: {
           Accept: "application/json",
+          Origin: "https://anicore.me",
         },
       },
     );
@@ -48,9 +55,8 @@ export async function GET(request: NextRequest) {
     }
 
     const data = (await response.json()) as KodikSearchResponse;
-    const link = data.results?.[0]?.link;
 
-    if (!link) {
+    if (!Array.isArray(data.results) || !data.results[0]?.link) {
       return NextResponse.json(
         {
           error: "Kodik API returned no playable link.",
@@ -61,7 +67,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ link });
+    return NextResponse.json({ link: data.results[0].link });
   } catch (error) {
     return NextResponse.json(
       {
