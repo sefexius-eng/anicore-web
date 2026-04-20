@@ -1,15 +1,12 @@
+import { ANIME } from "@consumet/extensions";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 const JIKAN_ANIME_ENDPOINT = "https://api.jikan.moe/v4/anime";
-const ROUGE_SEARCH_ENDPOINT =
-  "https://api-anime-rouge.vercel.app/aniwatch/search";
-const ROUGE_EPISODES_ENDPOINT =
-  "https://api-anime-rouge.vercel.app/aniwatch/episodes";
-const ROUGE_EPISODE_SRCS_ENDPOINT =
-  "https://api-anime-rouge.vercel.app/aniwatch/episode-srcs";
-const TEST_STREAM_URL = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+const TEST_STREAM_URL = "https://test-streams.mux.dev/bbb-360p/bbb-360p.m3u8";
+
+const gogoanime = new ANIME.Gogoanime();
 
 type JikanAnimeResponse = {
   data?: {
@@ -18,53 +15,33 @@ type JikanAnimeResponse = {
   };
 };
 
-type RougeAnimeSearchItem = {
+type ParserSearchResult = {
   id?: string;
-  name?: string;
+  title?: string;
 };
 
-type RougeSearchResponse = {
-  animes?: RougeAnimeSearchItem[];
-  data?: {
-    animes?: RougeAnimeSearchItem[];
-  };
+type ParserSearchResponse = {
+  results?: ParserSearchResult[];
 };
 
-type RougeEpisode = {
+type ParserEpisode = {
   id?: string;
-  episodeId?: string;
   number?: number | string;
+  episodeNumber?: number | string;
 };
 
-type RougeEpisodesResponse = {
-  episodes?: RougeEpisode[];
-  data?: {
-    episodes?: RougeEpisode[];
-  };
+type ParserAnimeInfo = {
+  episodes?: ParserEpisode[];
 };
 
-type RougeSource = {
+type ParserSource = {
   url?: string;
-  file?: string;
+  isM3U8?: boolean;
 };
 
-type RougeEpisodeSrcsResponse = {
-  file?: string;
-  sources?: RougeSource[];
-  data?: {
-    sources?: RougeSource[];
-  };
+type ParserSourcesResponse = {
+  sources?: ParserSource[];
 };
-
-class UpstreamRequestError extends Error {
-  status: number | null;
-
-  constructor(message: string, status: number | null = null) {
-    super(message);
-    this.name = "UpstreamRequestError";
-    this.status = status;
-  }
-}
 
 function normalizeTitle(title: string): string {
   const withoutDiacritics = title
@@ -101,103 +78,6 @@ function parseEpisodeParam(value: string | null): number {
   return Math.floor(parsed);
 }
 
-function extractRougeAnimes(payload: RougeSearchResponse): RougeAnimeSearchItem[] {
-  if (Array.isArray(payload.data?.animes)) {
-    return payload.data.animes;
-  }
-
-  if (Array.isArray(payload.animes)) {
-    return payload.animes;
-  }
-
-  return [];
-}
-
-function extractRougeEpisodes(payload: RougeEpisodesResponse): RougeEpisode[] {
-  if (Array.isArray(payload.episodes)) {
-    return payload.episodes;
-  }
-
-  if (Array.isArray(payload.data?.episodes)) {
-    return payload.data.episodes;
-  }
-
-  return [];
-}
-
-function extractRougeSources(payload: RougeEpisodeSrcsResponse): RougeSource[] {
-  if (Array.isArray(payload.sources)) {
-    return payload.sources;
-  }
-
-  if (Array.isArray(payload.data?.sources)) {
-    return payload.data.sources;
-  }
-
-  return [];
-}
-
-function resolveEpisodeId(episodes: RougeEpisode[], requestedEpisode: number): string | null {
-  const matchingEpisode = episodes.find((episode) => {
-    const number =
-      typeof episode.number === "string" ? Number(episode.number) : episode.number;
-
-    return Number.isFinite(number) && Number(number) === requestedEpisode;
-  });
-
-  const directEpisodeId =
-    matchingEpisode?.episodeId?.trim() || matchingEpisode?.id?.trim();
-
-  if (directEpisodeId) {
-    return directEpisodeId;
-  }
-
-  const fallbackEpisode = episodes[requestedEpisode - 1];
-
-  return fallbackEpisode?.episodeId?.trim() || fallbackEpisode?.id?.trim() || null;
-}
-
-async function fetchJson<T>(url: string): Promise<T> {
-  let response: Response;
-
-  try {
-    response = await fetch(url, {
-      method: "GET",
-      cache: "no-store",
-      headers: {
-        Accept: "application/json",
-      },
-    });
-  } catch {
-    throw new UpstreamRequestError("Network error while requesting upstream API");
-  }
-
-  if (!response.ok) {
-    throw new UpstreamRequestError(
-      `Request failed with status ${response.status}`,
-      response.status,
-    );
-  }
-
-  return (await response.json()) as T;
-}
-
-function getProviderErrorMessage(error: unknown): string {
-  if (error instanceof UpstreamRequestError) {
-    if (typeof error.status === "number") {
-      return `upstream status ${error.status}`;
-    }
-
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Unknown upstream error";
-}
-
 function safeJsonStringify(value: unknown): string {
   try {
     return JSON.stringify(value);
@@ -212,6 +92,51 @@ function testStreamResponse(reason: string): NextResponse {
   return NextResponse.json({
     stream: TEST_STREAM_URL,
   });
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+function resolveEpisodeId(
+  episodes: ParserEpisode[] | undefined,
+  requestedEpisode: number,
+): string | null {
+  if (!Array.isArray(episodes) || episodes.length === 0) {
+    return null;
+  }
+
+  const matchingEpisode = episodes.find((episode) => {
+    const numberCandidate =
+      typeof episode.number !== "undefined"
+        ? episode.number
+        : episode.episodeNumber;
+
+    const resolvedNumber =
+      typeof numberCandidate === "string"
+        ? Number(numberCandidate)
+        : numberCandidate;
+
+    return Number.isFinite(resolvedNumber) && Number(resolvedNumber) === requestedEpisode;
+  });
+
+  if (matchingEpisode?.id?.trim()) {
+    return matchingEpisode.id.trim();
+  }
+
+  return episodes[requestedEpisode - 1]?.id?.trim() || null;
 }
 
 export async function GET(request: NextRequest) {
@@ -247,83 +172,54 @@ export async function GET(request: NextRequest) {
 
     console.log(`[stream] normalized title: ${normalizedTitle}`);
 
-    const searchUrl = `${ROUGE_SEARCH_ENDPOINT}?keyword=${encodeURIComponent(normalizedTitle)}`;
-    console.log(`[stream] rouge search url: ${searchUrl}`);
-
-    const searchPayload = await fetchJson<RougeSearchResponse>(searchUrl);
+    const searchResults = (await gogoanime.search(
+      normalizedTitle,
+    )) as ParserSearchResponse;
     console.log(
-      `[stream] Rouge API Search Result: ${safeJsonStringify(searchPayload)}`,
+      `[stream] parser search results: ${safeJsonStringify(searchResults)}`,
     );
 
-    const searchAnimes = extractRougeAnimes(searchPayload);
-    const normalizedLookup = normalizedTitle.toLowerCase().trim();
-    const selectedAnime =
-      searchAnimes.find(
-        (anime) => anime.name?.toLowerCase().trim() === normalizedLookup,
-      ) ?? searchAnimes[0];
+    const animeId = searchResults.results?.[0]?.id?.trim() || null;
 
-    console.log(
-      `[stream] rouge selected anime: ${safeJsonStringify(selectedAnime ?? null)}`,
-    );
-
-    const rawId = selectedAnime?.id?.trim() ?? null;
-    const cleanId = rawId?.split("?")[0]?.trim() ?? null;
-
-    console.log(`[stream] rouge rawId: ${rawId ?? "not-found"}`);
-    console.log(`[stream] rouge cleanId: ${cleanId ?? "not-found"}`);
-
-    console.log(`[stream] rouge animeId: ${cleanId ?? "not-found"}`);
-
-    if (!cleanId) {
-      throw new Error("Rouge search returned no animeId");
+    if (!animeId) {
+      throw new Error("Parser search returned no anime id");
     }
 
-    const episodesUrl = `${ROUGE_EPISODES_ENDPOINT}/${encodeURIComponent(cleanId)}`;
-    console.log(`[stream] rouge episodes url: ${episodesUrl}`);
+    console.log(`[stream] parser anime id: ${animeId}`);
 
-    const episodesPayload = await fetchJson<RougeEpisodesResponse>(episodesUrl);
-    console.log(
-      `[stream] Rouge API Episodes Result: ${safeJsonStringify(episodesPayload)}`,
-    );
+    const animeInfo = (await gogoanime.fetchAnimeInfo(animeId)) as ParserAnimeInfo;
+    console.log(`[stream] parser anime info: ${safeJsonStringify(animeInfo)}`);
 
-    const episodes = extractRougeEpisodes(episodesPayload);
-    const episodeId = resolveEpisodeId(episodes, episodeNumber);
-
-    console.log(
-      `[stream] rouge episodeId for episode ${episodeNumber}: ${episodeId ?? "not-found"}`,
-    );
+    const episodeId = resolveEpisodeId(animeInfo.episodes, episodeNumber);
 
     if (!episodeId) {
-      throw new Error("Rouge episodes returned no episodeId");
+      throw new Error("Parser anime info returned no episode id");
     }
 
-    const episodeSrcsUrl = `${ROUGE_EPISODE_SRCS_ENDPOINT}?id=${encodeURIComponent(episodeId)}&server=vidstreaming&category=sub`;
-    console.log(`[stream] rouge stream url: ${episodeSrcsUrl}`);
+    console.log(`[stream] parser episode id: ${episodeId}`);
 
-    const streamData = await fetchJson<RougeEpisodeSrcsResponse>(episodeSrcsUrl);
-    console.log("Rouge API Stream Data:", JSON.stringify(streamData));
-    console.log(
-      `[stream] Rouge API Stream Result: ${safeJsonStringify(streamData)}`,
-    );
+    const streamLinks = (await gogoanime.fetchEpisodeSources(
+      episodeId,
+    )) as ParserSourcesResponse;
+    console.log(`[stream] parser stream links: ${safeJsonStringify(streamLinks)}`);
 
+    const sources = streamLinks.sources ?? [];
     const streamUrl =
-      streamData?.sources?.[0]?.url ||
-      streamData?.sources?.[0]?.file ||
-      streamData?.file ||
-      streamData?.data?.sources?.[0]?.url;
+      sources.find((source) => source.isM3U8 === true && typeof source.url === "string")
+        ?.url || sources[0]?.url;
 
     if (!streamUrl) {
-      console.error("Stream URL not found in response");
-      throw new Error("Rouge stream response has no playable source url");
+      throw new Error("Parser stream links returned no playable url");
     }
 
-    console.log(`[stream] rouge stream resolved: ${streamUrl}`);
+    console.log(`[stream] parser stream resolved: ${streamUrl}`);
 
     return NextResponse.json({
       stream: streamUrl,
     });
   } catch (error) {
-    console.log(`[stream] route failed: ${getProviderErrorMessage(error)}`);
-    return testStreamResponse(getProviderErrorMessage(error));
+    const message = error instanceof Error ? error.message : "Unknown parser error";
+    console.log(`[stream] route failed: ${message}`);
+    return testStreamResponse(message);
   }
 }
