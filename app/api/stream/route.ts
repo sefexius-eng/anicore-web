@@ -79,17 +79,80 @@ class UpstreamRequestError extends Error {
 }
 
 function normalizeTitle(title: string): string {
-  return title
+  const withoutDiacritics = title
     .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  const normalizedDelimiters = withoutDiacritics.replace(/[–—]/g, "-");
+
+  // Remove subtitle parts separated by colon/dash markers, but keep inline cases like "Re:Zero".
+  const titleWithoutSubtitle =
+    normalizedDelimiters.split(/\s[-:]\s|:\s+|-\s+/)[0] ?? normalizedDelimiters;
+
+  const titleWithoutSeasonSuffix = titleWithoutSubtitle
+    .replace(/\b(?:\d+(?:st|nd|rd|th)?\s+)?(?:season|part|cour)\b.*$/i, "")
+    .replace(/\b(?:season|part|cour)\s*\d+\b.*$/i, "");
+
+  return titleWithoutSeasonSuffix
     .replace(/["'`’]/g, "")
-    .replace(/\b(season|part)\s*\d+\b/gi, " ")
-    .replace(/[^a-zA-Z0-9\s-]/g, " ")
+    .replace(/[()\[\]{}]/g, " ")
+    .replace(/-/g, " ")
+    .replace(/[^a-zA-Z0-9\s:]/g, " ")
+    .replace(/:/g, " ")
     .replace(/\s+/g, " ")
-    .trim()
+    .trim();
+}
+
+function toKebabCase(value: string): string {
+  return value
     .toLowerCase()
+    .trim()
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+}
+
+function extractWords(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter(Boolean);
+}
+
+function buildSearchQueries(
+  provider: ConsumetProvider,
+  normalizedTitle: string,
+): string[] {
+  const words = extractWords(normalizedTitle);
+  const queries: string[] = [];
+
+  const pushUnique = (query: string) => {
+    const cleaned = query.trim();
+
+    if (cleaned && !queries.includes(cleaned)) {
+      queries.push(cleaned);
+    }
+  };
+
+  const fullPhrase = words.join(" ");
+  pushUnique(toKebabCase(fullPhrase));
+  pushUnique(fullPhrase);
+
+  if (provider === "gogoanime") {
+    if (words.length >= 3) {
+      const firstThreeWords = words.slice(0, 3).join(" ");
+      pushUnique(toKebabCase(firstThreeWords));
+      pushUnique(firstThreeWords);
+    }
+
+    if (words.length >= 2) {
+      const firstTwoWords = words.slice(0, 2).join(" ");
+      pushUnique(toKebabCase(firstTwoWords));
+      pushUnique(firstTwoWords);
+    }
+  }
+
+  return queries;
 }
 
 function parseEpisodeParam(value: string | null): number {
@@ -214,11 +277,25 @@ async function resolveProviderStream(
 ): Promise<ProviderStreamResult> {
   const endpoints = CONSUMET_PROVIDER_ENDPOINTS[provider];
 
-  const searchPayload = await fetchJson<ConsumetSearchResponse>(
-    `${endpoints.search}/${encodeURIComponent(normalizedTitle)}`,
-  );
+  const searchQueries = buildSearchQueries(provider, normalizedTitle);
+  let animeId: string | null = null;
 
-  const animeId = extractSearchResults(searchPayload)[0]?.id?.trim();
+  for (const query of searchQueries) {
+    console.log(`[stream] ${provider} search query: ${query}`);
+
+    const searchPayload = await fetchJson<ConsumetSearchResponse>(
+      `${endpoints.search}/${encodeURIComponent(query)}`,
+    );
+
+    animeId = extractSearchResults(searchPayload)[0]?.id?.trim() ?? null;
+
+    if (animeId) {
+      console.log(`[stream] ${provider} animeId found: ${animeId}`);
+      break;
+    }
+
+    console.log(`[stream] ${provider} no matches for query: ${query}`);
+  }
 
   if (!animeId) {
     throw new Error("Anime not found in provider search results");
@@ -257,6 +334,8 @@ export async function GET(request: NextRequest) {
   const malId = Number(malIdParam);
   const episodeNumber = parseEpisodeParam(request.nextUrl.searchParams.get("ep"));
 
+  console.log(`[stream] request malId=${malIdParam} episode=${episodeNumber}`);
+
   if (!Number.isInteger(malId) || malId <= 0) {
     return NextResponse.json(
       { error: "Параметр malId обязателен и должен быть положительным числом." },
@@ -279,6 +358,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log(`[stream] jikan title: ${title}`);
+
     const normalizedTitle = normalizeTitle(title);
 
     if (!normalizedTitle) {
@@ -287,6 +368,8 @@ export async function GET(request: NextRequest) {
         { status: 404 },
       );
     }
+
+    console.log(`[stream] normalized title: ${normalizedTitle}`);
 
     const providerErrors: string[] = [];
     let streamResult: ProviderStreamResult | null = null;
@@ -298,7 +381,11 @@ export async function GET(request: NextRequest) {
         normalizedTitle,
         episodeNumber,
       );
+      console.log("[stream] provider selected: gogoanime");
     } catch (error) {
+      console.log(
+        `[stream] gogoanime failed, switching to zoro: ${getProviderErrorMessage(error)}`,
+      );
       providerErrors.push(`gogoanime: ${getProviderErrorMessage(error)}`);
     }
 
@@ -309,7 +396,11 @@ export async function GET(request: NextRequest) {
           normalizedTitle,
           episodeNumber,
         );
+        console.log("[stream] provider selected: zoro");
       } catch (error) {
+        console.log(
+          `[stream] zoro failed: ${getProviderErrorMessage(error)}`,
+        );
         providerErrors.push(`zoro: ${getProviderErrorMessage(error)}`);
       }
     }
