@@ -34,7 +34,7 @@ export default async function AnimePage({ params }: AnimePageProps) {
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-14 pt-8 sm:px-6 lg:px-8">
         <section className="space-y-6">
           <div className="rounded-3xl border border-border/60 bg-card/70 p-5 shadow-2xl backdrop-blur-sm sm:p-6">
-            <WatchArea malId={numericId} totalEpisodes={12} />
+            <WatchArea malId={numericId} />
           </div>
 
           <section className="rounded-3xl border border-border/60 bg-card/70 p-5 shadow-2xl backdrop-blur-sm sm:p-6">
