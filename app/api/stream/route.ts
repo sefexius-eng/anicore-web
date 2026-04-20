@@ -9,6 +9,7 @@ const ROUGE_EPISODES_ENDPOINT =
   "https://api-anime-rouge.vercel.app/aniwatch/episodes";
 const ROUGE_EPISODE_SRCS_ENDPOINT =
   "https://api-anime-rouge.vercel.app/aniwatch/episode-srcs";
+const TEST_STREAM_URL = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 
 type JikanAnimeResponse = {
   data?: {
@@ -194,6 +195,22 @@ function getProviderErrorMessage(error: unknown): string {
   return "Unknown upstream error";
 }
 
+function safeJsonStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "[unserializable-json]";
+  }
+}
+
+function testStreamResponse(reason: string): NextResponse {
+  console.log(`[stream] fallback test stream reason: ${reason}`);
+
+  return NextResponse.json({
+    stream: TEST_STREAM_URL,
+  });
+}
+
 export async function GET(request: NextRequest) {
   const malIdParam = request.nextUrl.searchParams.get("malId");
   const malId = Number(malIdParam);
@@ -202,10 +219,7 @@ export async function GET(request: NextRequest) {
   console.log(`[stream] request malId=${malIdParam} episode=${episodeNumber}`);
 
   if (!Number.isInteger(malId) || malId <= 0) {
-    return NextResponse.json(
-      { error: "Параметр malId обязателен и должен быть положительным числом." },
-      { status: 400 },
-    );
+    return testStreamResponse("invalid malId parameter");
   }
 
   try {
@@ -217,10 +231,7 @@ export async function GET(request: NextRequest) {
       jikanPayload.data?.title_english?.trim() || jikanPayload.data?.title?.trim();
 
     if (!title) {
-      return NextResponse.json(
-        { error: "Не удалось определить название аниме в Jikan." },
-        { status: 404 },
-      );
+      throw new Error("Failed to resolve anime title from Jikan");
     }
 
     console.log(`[stream] jikan title: ${title}`);
@@ -228,10 +239,7 @@ export async function GET(request: NextRequest) {
     const normalizedTitle = normalizeTitle(title);
 
     if (!normalizedTitle) {
-      return NextResponse.json(
-        { error: "Не удалось нормализовать название для поиска в Rouge API." },
-        { status: 404 },
-      );
+      throw new Error("Failed to normalize anime title");
     }
 
     console.log(`[stream] normalized title: ${normalizedTitle}`);
@@ -240,21 +248,26 @@ export async function GET(request: NextRequest) {
     console.log(`[stream] rouge search url: ${searchUrl}`);
 
     const searchPayload = await fetchJson<RougeSearchResponse>(searchUrl);
+    console.log(
+      `[stream] Rouge API Search Result: ${safeJsonStringify(searchPayload)}`,
+    );
+
     const animeId = extractRougeAnimes(searchPayload)[0]?.id?.trim() ?? null;
 
     console.log(`[stream] rouge animeId: ${animeId ?? "not-found"}`);
 
     if (!animeId) {
-      return NextResponse.json(
-        { error: "Не удалось найти аниме в Rouge API." },
-        { status: 404 },
-      );
+      throw new Error("Rouge search returned no animeId");
     }
 
     const episodesUrl = `${ROUGE_EPISODES_ENDPOINT}/${encodeURIComponent(animeId)}`;
     console.log(`[stream] rouge episodes url: ${episodesUrl}`);
 
     const episodesPayload = await fetchJson<RougeEpisodesResponse>(episodesUrl);
+    console.log(
+      `[stream] Rouge API Episodes Result: ${safeJsonStringify(episodesPayload)}`,
+    );
+
     const episodes = extractRougeEpisodes(episodesPayload);
     const episodeId = resolveEpisodeId(episodes, episodeNumber);
 
@@ -263,16 +276,17 @@ export async function GET(request: NextRequest) {
     );
 
     if (!episodeId) {
-      return NextResponse.json(
-        { error: "Не удалось найти эпизод в Rouge API." },
-        { status: 404 },
-      );
+      throw new Error("Rouge episodes returned no episodeId");
     }
 
     const streamUrl = `${ROUGE_EPISODE_SRCS_ENDPOINT}?id=${encodeURIComponent(episodeId)}&server=vidstreaming&category=sub`;
     console.log(`[stream] rouge stream url: ${streamUrl}`);
 
     const streamPayload = await fetchJson<RougeEpisodeSrcsResponse>(streamUrl);
+    console.log(
+      `[stream] Rouge API Stream Result: ${safeJsonStringify(streamPayload)}`,
+    );
+
     const sources = extractRougeSources(streamPayload);
     const source =
       sources.find(
@@ -282,10 +296,7 @@ export async function GET(request: NextRequest) {
       ) ?? sources.find((streamSource) => typeof streamSource.url === "string");
 
     if (!source?.url) {
-      return NextResponse.json(
-        { error: "Не удалось получить источник потока из Rouge API." },
-        { status: 404 },
-      );
+      throw new Error("Rouge stream response has no playable source url");
     }
 
     console.log(`[stream] rouge stream resolved: ${source.url}`);
@@ -295,15 +306,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.log(`[stream] route failed: ${getProviderErrorMessage(error)}`);
-
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Внутренняя ошибка при получении потока.",
-      },
-      { status: 500 },
-    );
+    return testStreamResponse(getProviderErrorMessage(error));
   }
 }
