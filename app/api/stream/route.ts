@@ -4,9 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 const JIKAN_ANIME_ENDPOINT = "https://api.jikan.moe/v4/anime";
-const TEST_STREAM_URL = "https://test-streams.mux.dev/bbb-360p/bbb-360p.m3u8";
+const TEST_STREAM_URL =
+  "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8";
 
-const hianime = new ANIME.Hianime();
+const consumet = new ANIME.Gogoanime();
 
 type JikanAnimeResponse = {
   data?: {
@@ -173,12 +174,20 @@ export async function GET(request: NextRequest) {
 
     console.log(`[stream] normalized title: ${normalizedTitle}`);
 
-    const searchResults = (await hianime.search(
+    let searchResults = (await consumet.search(
       normalizedTitle,
     )) as ParserSearchResponse;
     console.log(
-      `[stream] parser search results: ${safeJsonStringify(searchResults)}`,
+      `[stream] parser search results (normalized): ${safeJsonStringify(searchResults)}`,
     );
+
+    if (!searchResults.results?.length) {
+      console.log(`[stream] parser fallback search query: ${title}`);
+      searchResults = (await consumet.search(title)) as ParserSearchResponse;
+      console.log(
+        `[stream] parser search results (original): ${safeJsonStringify(searchResults)}`,
+      );
+    }
 
     const animeId = searchResults.results?.[0]?.id?.trim() || null;
 
@@ -188,7 +197,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[stream] parser anime id: ${animeId}`);
 
-    const animeInfo = (await hianime.fetchAnimeInfo(animeId)) as ParserAnimeInfo;
+    const animeInfo = (await consumet.fetchAnimeInfo(animeId)) as ParserAnimeInfo;
     console.log(`[stream] parser anime info: ${safeJsonStringify(animeInfo)}`);
 
     const episodeId = resolveEpisodeId(animeInfo.episodes, episodeNumber);
@@ -199,7 +208,7 @@ export async function GET(request: NextRequest) {
 
     console.log(`[stream] parser episode id: ${episodeId}`);
 
-    const streamLinks = (await hianime.fetchEpisodeSources(
+    const streamLinks = (await consumet.fetchEpisodeSources(
       episodeId,
     )) as ParserSourcesResponse;
     console.log(`[stream] parser stream links: ${safeJsonStringify(streamLinks)}`);
