@@ -16,7 +16,8 @@ const ROUGE_EPISODE_SRCS_ENDPOINT =
 const TEARS_OF_STEEL_STREAM =
   "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8";
 
-const proxyUrl = (url: string) => "https://corsproxy.io/?" + encodeURIComponent(url);
+const proxyUrl = (url: string) =>
+  `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
 
 interface WatchAreaProps {
   malId: number | string;
