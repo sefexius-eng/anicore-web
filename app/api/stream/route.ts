@@ -20,6 +20,7 @@ type JikanAnimeResponse = {
 
 type RougeAnimeSearchItem = {
   id?: string;
+  name?: string;
 };
 
 type RougeSearchResponse = {
@@ -99,12 +100,12 @@ function parseEpisodeParam(value: string | null): number {
 }
 
 function extractRougeAnimes(payload: RougeSearchResponse): RougeAnimeSearchItem[] {
-  if (Array.isArray(payload.animes)) {
-    return payload.animes;
-  }
-
   if (Array.isArray(payload.data?.animes)) {
     return payload.data.animes;
+  }
+
+  if (Array.isArray(payload.animes)) {
+    return payload.animes;
   }
 
   return [];
@@ -252,15 +253,30 @@ export async function GET(request: NextRequest) {
       `[stream] Rouge API Search Result: ${safeJsonStringify(searchPayload)}`,
     );
 
-    const animeId = extractRougeAnimes(searchPayload)[0]?.id?.trim() ?? null;
+    const searchAnimes = extractRougeAnimes(searchPayload);
+    const normalizedLookup = normalizedTitle.toLowerCase().trim();
+    const selectedAnime =
+      searchAnimes.find(
+        (anime) => anime.name?.toLowerCase().trim() === normalizedLookup,
+      ) ?? searchAnimes[0];
 
-    console.log(`[stream] rouge animeId: ${animeId ?? "not-found"}`);
+    console.log(
+      `[stream] rouge selected anime: ${safeJsonStringify(selectedAnime ?? null)}`,
+    );
 
-    if (!animeId) {
+    const rawId = selectedAnime?.id?.trim() ?? null;
+    const cleanId = rawId?.split("?")[0]?.trim() ?? null;
+
+    console.log(`[stream] rouge rawId: ${rawId ?? "not-found"}`);
+    console.log(`[stream] rouge cleanId: ${cleanId ?? "not-found"}`);
+
+    console.log(`[stream] rouge animeId: ${cleanId ?? "not-found"}`);
+
+    if (!cleanId) {
       throw new Error("Rouge search returned no animeId");
     }
 
-    const episodesUrl = `${ROUGE_EPISODES_ENDPOINT}/${encodeURIComponent(animeId)}`;
+    const episodesUrl = `${ROUGE_EPISODES_ENDPOINT}/${encodeURIComponent(cleanId)}`;
     console.log(`[stream] rouge episodes url: ${episodesUrl}`);
 
     const episodesPayload = await fetchJson<RougeEpisodesResponse>(episodesUrl);
