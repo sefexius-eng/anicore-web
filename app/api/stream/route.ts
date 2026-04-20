@@ -7,7 +7,8 @@ const JIKAN_ANIME_ENDPOINT = "https://api.jikan.moe/v4/anime";
 const TEST_STREAM_URL =
   "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8";
 
-const consumet = new ANIME.Gogoanime("https://anitaku.pe");
+const consumet = new ANIME.Gogoanime();
+(consumet as unknown as { baseUrl: string }).baseUrl = "https://anitaku.pe";
 
 type JikanAnimeResponse = {
   data?: {
