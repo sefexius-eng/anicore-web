@@ -41,6 +41,7 @@ type ParserSource = {
 
 type ParserSourcesResponse = {
   sources?: ParserSource[];
+  headers?: Record<string, string>;
 };
 
 function normalizeTitle(title: string): string {
@@ -202,20 +203,23 @@ export async function GET(request: NextRequest) {
       episodeId,
     )) as ParserSourcesResponse;
     console.log(`[stream] parser stream links: ${safeJsonStringify(streamLinks)}`);
+    console.log("Consumet Extracted Sources:", JSON.stringify(streamLinks.sources));
 
     const sources = streamLinks.sources ?? [];
     const streamUrl =
       sources.find((source) => source.isM3U8 === true && typeof source.url === "string")
         ?.url || sources[0]?.url;
+    const streamHeaders = streamLinks.headers;
 
     if (!streamUrl) {
-      throw new Error("Parser stream links returned no playable url");
+      throw new Error("Stream URL is empty or undefined");
     }
 
     console.log(`[stream] parser stream resolved: ${streamUrl}`);
 
     return NextResponse.json({
       stream: streamUrl,
+      headers: streamHeaders,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown parser error";
