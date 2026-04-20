@@ -29,7 +29,7 @@ export function WatchArea({ malId }: WatchAreaProps) {
 
       try {
         // Replace YOUR_KODIK_TOKEN with the real Kodik API token.
-        const url = `https://kodikapi.com/search?token=YOUR_KODIK_TOKEN&shikimori_id=${malId}`;
+        const url = `https://kodik-api.com/search?token=YOUR_KODIK_TOKEN&shikimori_id=${malId}`;
 
         const response = await fetch(url, {
           method: "GET",
