@@ -52,7 +52,7 @@ export default async function Home() {
               Популярное сейчас
             </h2>
             <p className="text-sm text-muted-foreground">
-              Данные загружаются из Jikan API.
+              Данные загружаются из Shikimori API.
             </p>
           </div>
 
@@ -70,7 +70,7 @@ export default async function Home() {
 
           {showcaseAnime.length === 0 && (
             <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-              Не удалось загрузить данные с Jikan API. Проверьте подключение к
+              Не удалось загрузить данные с Shikimori API. Проверьте подключение к
               интернету и попробуйте обновить страницу.
             </p>
           )}

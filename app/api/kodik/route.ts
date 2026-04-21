@@ -11,6 +11,8 @@ interface KodikSearchTranslation {
 interface KodikSearchResult {
   link?: string;
   translation?: KodikSearchTranslation;
+  last_season?: number | string | null;
+  blocked_seasons?: unknown;
 }
 
 interface KodikSearchResponse {
@@ -27,13 +29,67 @@ function isTranslationType(value: unknown): value is TranslationType {
   return value === "voice" || value === "subtitles";
 }
 
+function parsePositiveInteger(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function collectBlockedSeasons(value: unknown): Set<number> {
+  const blocked = new Set<number>();
+
+  if (Array.isArray(value)) {
+    for (const season of value) {
+      const parsedSeason = parsePositiveInteger(season);
+      if (parsedSeason !== null) {
+        blocked.add(parsedSeason);
+      }
+    }
+
+    return blocked;
+  }
+
+  if (typeof value === "object" && value !== null) {
+    for (const key of Object.keys(value)) {
+      const parsedSeason = parsePositiveInteger(key);
+      if (parsedSeason !== null) {
+        blocked.add(parsedSeason);
+      }
+    }
+  }
+
+  return blocked;
+}
+
+function buildAvailableSeasons(result: KodikSearchResult): number[] {
+  const lastSeason = parsePositiveInteger(result.last_season) ?? 1;
+  const blockedSeasons = collectBlockedSeasons(result.blocked_seasons);
+
+  const seasons = Array.from({ length: lastSeason }, (_, index) => index + 1).filter(
+    (season) => !blockedSeasons.has(season),
+  );
+
+  return seasons.length > 0 ? seasons : [1];
+}
+
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const malId = request.nextUrl.searchParams.get("malId");
   const translationIdParam = request.nextUrl.searchParams.get("translation_id");
+  const seasonParam = request.nextUrl.searchParams.get("season");
 
   let requestedTranslationId: number | null = null;
+  let requestedSeason: number | null = null;
 
   if (translationIdParam !== null) {
     const parsedTranslationId = Number(translationIdParam);
@@ -50,6 +106,23 @@ export async function GET(request: NextRequest) {
     }
 
     requestedTranslationId = parsedTranslationId;
+  }
+
+  if (seasonParam !== null) {
+    const parsedSeason = Number(seasonParam);
+
+    if (!Number.isInteger(parsedSeason) || parsedSeason <= 0) {
+      return NextResponse.json(
+        {
+          error: "Invalid season search parameter.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    requestedSeason = parsedSeason;
   }
 
   if (!malId) {
@@ -148,12 +221,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const seasons = buildAvailableSeasons(selectedResult);
+    const activeSeason =
+      requestedSeason !== null && seasons.includes(requestedSeason)
+        ? requestedSeason
+        : seasons[0];
+
     return NextResponse.json({
       link: selectedResult.link,
       activeTranslationId:
         typeof selectedResult.translation?.id === "number"
           ? selectedResult.translation.id
           : null,
+      seasons,
+      activeSeason,
       translations: Array.from(translationsMap.values()),
     });
   } catch (error) {

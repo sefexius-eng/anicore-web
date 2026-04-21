@@ -7,6 +7,7 @@ import {
   TranslationSidebar,
 } from "@/components/shared/translation-sidebar";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface WatchAreaProps {
   malId: number | string;
@@ -16,6 +17,8 @@ interface KodikPlayerResponse {
   link?: string;
   translations?: TranslationOption[];
   activeTranslationId?: number | null;
+  seasons?: number[];
+  activeSeason?: number;
   error?: string;
 }
 
@@ -33,10 +36,51 @@ function isTranslationOption(value: unknown): value is TranslationOption {
   );
 }
 
+function isSeasonNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+function normalizeKodikPlayerLink(link: string): string {
+  return link.startsWith("http://") || link.startsWith("https://") ? link : `https:${link}`;
+}
+
+function buildKodikIframeSrc(link: string, season: number | null): string {
+  const url = new URL(normalizeKodikPlayerLink(link));
+
+  url.searchParams.set("translations", "false");
+
+  if (typeof season === "number") {
+    url.searchParams.set("season", String(season));
+  } else {
+    url.searchParams.delete("season");
+  }
+
+  return url.toString();
+}
+
+function resolveActiveSeason(
+  seasons: number[],
+  preferredSeason: number | null,
+  apiSeason: number | undefined,
+): number {
+  if (typeof apiSeason === "number" && seasons.includes(apiSeason)) {
+    return apiSeason;
+  }
+
+  if (typeof preferredSeason === "number" && seasons.includes(preferredSeason)) {
+    return preferredSeason;
+  }
+
+  return seasons[0] ?? 1;
+}
+
 export function WatchArea({ malId }: WatchAreaProps) {
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+  const [playerLink, setPlayerLink] = useState<string | null>(null);
   const [translations, setTranslations] = useState<TranslationOption[]>([]);
   const [activeTranslationId, setActiveTranslationId] = useState<number | null>(null);
+  const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
+  const [activeSeason, setActiveSeason] = useState<number | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -47,7 +91,7 @@ export function WatchArea({ malId }: WatchAreaProps) {
   }, [translations]);
 
   const loadPlayer = React.useCallback(
-    async (translationId: number | null) => {
+    async (translationId: number | null, preferredSeason: number | null) => {
       abortControllerRef.current?.abort();
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -59,6 +103,9 @@ export function WatchArea({ malId }: WatchAreaProps) {
       if (translationId === null) {
         setTranslations([]);
         setActiveTranslationId(null);
+        setAvailableSeasons([]);
+        setActiveSeason(null);
+        setPlayerLink(null);
       }
 
       try {
@@ -68,6 +115,10 @@ export function WatchArea({ malId }: WatchAreaProps) {
 
         if (typeof translationId === "number") {
           searchParams.set("translation_id", String(translationId));
+        }
+
+        if (typeof preferredSeason === "number") {
+          searchParams.set("season", String(preferredSeason));
         }
 
         const response = await fetch(`/api/kodik?${searchParams.toString()}`, {
@@ -85,6 +136,21 @@ export function WatchArea({ malId }: WatchAreaProps) {
           ? data.translations.filter(isTranslationOption)
           : [];
 
+        const seasonsFromApi = Array.isArray(data.seasons)
+          ? data.seasons.filter(isSeasonNumber)
+          : [];
+
+        const normalizedSeasons =
+          seasonsFromApi.length > 0
+            ? Array.from(new Set(seasonsFromApi)).sort((a, b) => a - b)
+            : [1];
+
+        const resolvedSeason = resolveActiveSeason(
+          normalizedSeasons,
+          preferredSeason,
+          data.activeSeason,
+        );
+
         setTranslations(availableTranslations);
 
         const resolvedActiveTranslationId =
@@ -92,8 +158,13 @@ export function WatchArea({ malId }: WatchAreaProps) {
             ? data.activeTranslationId
             : availableTranslations[0]?.id ?? null;
 
+        const normalizedLink = normalizeKodikPlayerLink(data.link);
+
         setActiveTranslationId(resolvedActiveTranslationId);
-        setIframeSrc(`https:${data.link}?translations=false`);
+        setAvailableSeasons(normalizedSeasons);
+        setActiveSeason(resolvedSeason);
+        setPlayerLink(normalizedLink);
+        setIframeSrc(buildKodikIframeSrc(normalizedLink, resolvedSeason));
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -103,6 +174,9 @@ export function WatchArea({ malId }: WatchAreaProps) {
           error instanceof Error ? error.message : "Failed to load the Kodik player.",
         );
         setIframeSrc(null);
+        setPlayerLink(null);
+        setAvailableSeasons([]);
+        setActiveSeason(null);
       } finally {
         if (abortControllerRef.current === controller && !controller.signal.aborted) {
           setIsLoading(false);
@@ -114,7 +188,7 @@ export function WatchArea({ malId }: WatchAreaProps) {
 
   React.useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadPlayer(null);
+    void loadPlayer(null, null);
 
     return () => {
       abortControllerRef.current?.abort();
@@ -125,9 +199,20 @@ export function WatchArea({ malId }: WatchAreaProps) {
     (translationId: number) => {
       setActiveTranslationId(translationId);
       setIsSidebarOpen(false);
-      void loadPlayer(translationId);
+      void loadPlayer(translationId, activeSeason);
     },
-    [loadPlayer],
+    [activeSeason, loadPlayer],
+  );
+
+  const handleSeasonSelect = React.useCallback(
+    (season: number) => {
+      setActiveSeason(season);
+
+      if (playerLink) {
+        setIframeSrc(buildKodikIframeSrc(playerLink, season));
+      }
+    },
+    [playerLink],
   );
 
   const activeTranslation =
@@ -150,14 +235,42 @@ export function WatchArea({ malId }: WatchAreaProps) {
           )}
         </div>
 
-        <Button
-          type="button"
-          variant="secondary"
-          className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800"
-          onClick={() => setIsSidebarOpen(true)}
-        >
-          Озвучки
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="rounded-xl border border-neutral-700/80 bg-neutral-950/80 p-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="px-2 text-[0.65rem] font-semibold tracking-[0.12em] text-neutral-400 uppercase">
+                Сезон
+              </span>
+
+              <div className="flex flex-wrap gap-1">
+                {availableSeasons.map((season) => (
+                  <button
+                    key={season}
+                    type="button"
+                    onClick={() => handleSeasonSelect(season)}
+                    className={cn(
+                      "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                      activeSeason === season
+                        ? "bg-cyan-500/20 text-cyan-200"
+                        : "bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white",
+                    )}
+                  >
+                    {season}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="secondary"
+            className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800"
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            Озвучки
+          </Button>
+        </div>
       </div>
 
       <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border/60 bg-black">
