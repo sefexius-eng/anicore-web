@@ -6,15 +6,43 @@ interface WatchAreaProps {
   malId: number | string;
 }
 
+type TranslationType = "voice" | "subtitles";
+
+interface TranslationOption {
+  id: number;
+  title: string;
+  type: TranslationType;
+}
+
 interface KodikPlayerResponse {
   link?: string;
+  translations?: TranslationOption[];
   error?: string;
+}
+
+function isTranslationOption(value: unknown): value is TranslationOption {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<TranslationOption>;
+
+  return (
+    typeof candidate.id === "number" &&
+    typeof candidate.title === "string" &&
+    (candidate.type === "voice" || candidate.type === "subtitles")
+  );
 }
 
 export function WatchArea({ malId }: WatchAreaProps) {
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+  const [translations, setTranslations] = useState<TranslationOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    console.log("[WatchArea] Available translations:", translations);
+  }, [translations]);
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -23,6 +51,7 @@ export function WatchArea({ malId }: WatchAreaProps) {
       setIsLoading(true);
       setErrorMessage(null);
       setIframeSrc(null);
+      setTranslations([]);
 
       try {
         const response = await fetch("/api/kodik?malId=" + malId, {
@@ -36,6 +65,12 @@ export function WatchArea({ malId }: WatchAreaProps) {
           throw new Error(data.error ?? `Kodik proxy request failed with status ${response.status}.`);
         }
 
+        const availableTranslations = Array.isArray(data.translations)
+          ? data.translations.filter(isTranslationOption)
+          : [];
+
+        setTranslations(availableTranslations);
+
         const iframeSrc = `https:${data.link}?translations=false`;
 
         setIframeSrc(iframeSrc);
@@ -48,6 +83,7 @@ export function WatchArea({ malId }: WatchAreaProps) {
           error instanceof Error ? error.message : "Failed to load the Kodik player.",
         );
         setIframeSrc(null);
+        setTranslations([]);
       } finally {
         if (!controller.signal.aborted) {
           setIsLoading(false);

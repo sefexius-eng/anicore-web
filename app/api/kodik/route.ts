@@ -1,11 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 
+type TranslationType = "voice" | "subtitles";
+
+interface KodikSearchTranslation {
+  id?: number;
+  title?: string;
+  type?: TranslationType | string;
+}
+
 interface KodikSearchResult {
   link?: string;
+  translation?: KodikSearchTranslation;
 }
 
 interface KodikSearchResponse {
   results?: KodikSearchResult[];
+}
+
+interface TranslationOption {
+  id: number;
+  title: string;
+  type: TranslationType;
+}
+
+function isTranslationType(value: unknown): value is TranslationType {
+  return value === "voice" || value === "subtitles";
 }
 
 export const dynamic = "force-dynamic";
@@ -56,7 +75,11 @@ export async function GET(request: NextRequest) {
 
     const data = (await response.json()) as KodikSearchResponse;
 
-    if (!Array.isArray(data.results) || !data.results[0]?.link) {
+    const playableResult = data.results?.find(
+      (result) => typeof result.link === "string" && result.link.length > 0,
+    );
+
+    if (!playableResult?.link) {
       return NextResponse.json(
         {
           error: "Kodik API returned no playable link.",
@@ -67,7 +90,40 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ link: data.results[0].link });
+    const translationsMap = new Map<string, TranslationOption>();
+
+    for (const result of data.results ?? []) {
+      const translation = result.translation;
+
+      if (
+        typeof translation?.id !== "number" ||
+        typeof translation.title !== "string" ||
+        !isTranslationType(translation.type)
+      ) {
+        continue;
+      }
+
+      const title = translation.title.trim();
+
+      if (!title) {
+        continue;
+      }
+
+      const key = `${translation.type}:${translation.id}`;
+
+      if (!translationsMap.has(key)) {
+        translationsMap.set(key, {
+          id: translation.id,
+          title,
+          type: translation.type,
+        });
+      }
+    }
+
+    return NextResponse.json({
+      link: playableResult.link,
+      translations: Array.from(translationsMap.values()),
+    });
   } catch (error) {
     return NextResponse.json(
       {
