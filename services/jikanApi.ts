@@ -1,3 +1,5 @@
+import { getPosterUrl } from "@/lib/poster";
+
 export interface AnimeShowcaseItem {
   id: number;
   title: string;
@@ -32,20 +34,14 @@ interface ShikimoriAnimeResponse {
 }
 
 const SHIKIMORI_API_BASE_URL = "https://shikimori.one/api";
-const SHIKIMORI_BASE_URL = "https://shikimori.one";
-const FALLBACK_POSTER =
-  `${SHIKIMORI_BASE_URL}/assets/globals/missing_original.jpg`;
+const FALLBACK_POSTER = getPosterUrl("/assets/globals/missing_original.jpg");
 
 function resolveImageUrl(path: string | null | undefined): string | null {
   if (typeof path !== "string" || !path.trim()) {
     return null;
   }
 
-  if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
-  }
-
-  return `${SHIKIMORI_BASE_URL}${path}`;
+  return getPosterUrl(path);
 }
 
 function resolvePosterUrl(payload: ShikimoriAnimeResponse): string {
@@ -98,7 +94,10 @@ function resolveSynopsis(payload: ShikimoriAnimeResponse): string {
       ? stripHtmlTags(payload.description_html)
       : "";
 
-  return descriptionFromHtml || "Синопсис временно недоступен.";
+  return (
+    descriptionFromHtml ||
+    "Описание этого сезона в процессе перевода. Вы можете начать просмотр прямо сейчас!"
+  );
 }
 
 function resolveGenres(payload: ShikimoriAnimeResponse): string[] {
@@ -129,9 +128,7 @@ async function fetchAnimePayload(id: number): Promise<ShikimoriAnimeResponse> {
   return (await response.json()) as ShikimoriAnimeResponse;
 }
 
-export async function getAnimeById(id: number): Promise<AnimeShowcaseItem> {
-  const payload = await fetchAnimePayload(id);
-
+function toAnimeShowcaseItem(payload: ShikimoriAnimeResponse): AnimeShowcaseItem {
   return {
     id: payload.id,
     title: resolveTitle(payload),
@@ -140,17 +137,58 @@ export async function getAnimeById(id: number): Promise<AnimeShowcaseItem> {
   };
 }
 
+export async function getAnimeById(id: number): Promise<AnimeShowcaseItem> {
+  const payload = await fetchAnimePayload(id);
+
+  return toAnimeShowcaseItem(payload);
+}
+
 export async function getAnimeDetailsById(
   id: number,
 ): Promise<AnimeDetailsItem> {
   const payload = await fetchAnimePayload(id);
 
   return {
-    id: payload.id,
-    title: resolveTitle(payload),
-    image_url: resolvePosterUrl(payload),
-    score: resolveScore(payload.score),
+    ...toAnimeShowcaseItem(payload),
     synopsis: resolveSynopsis(payload),
     genres: resolveGenres(payload),
   };
+}
+
+export async function searchAnime(
+  query: string,
+  limit = 10,
+): Promise<AnimeShowcaseItem[]> {
+  const searchQuery = query.trim();
+
+  if (!searchQuery) {
+    return [];
+  }
+
+  const searchParams = new URLSearchParams({
+    search: searchQuery,
+    limit: String(limit),
+  });
+
+  const response = await fetch(`${SHIKIMORI_API_BASE_URL}/animes?${searchParams.toString()}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+    next: {
+      revalidate: 60,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Shikimori search request failed: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as ShikimoriAnimeResponse[];
+
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+
+  return payload.map(toAnimeShowcaseItem);
 }

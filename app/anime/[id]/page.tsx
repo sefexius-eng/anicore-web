@@ -4,16 +4,11 @@ import { notFound } from "next/navigation";
 import { Footer } from "@/components/shared/footer";
 import { Navbar } from "@/components/shared/navbar";
 import { WatchArea } from "@/components/shared/WatchArea";
+import { getPosterUrl } from "@/lib/poster";
 import { getAnimeDetailsById } from "@/services/jikanApi";
 
 interface AnimePageProps {
   params: Promise<{ id: string }>;
-}
-
-const SHIKIMORI_BASE_URL = "https://shikimori.one";
-
-function resolveShikimoriImageUrl(url: string): string {
-  return url.startsWith("/") ? `${SHIKIMORI_BASE_URL}${url}` : url;
 }
 
 function cleanShikimoriText(text: string): string {
@@ -35,7 +30,7 @@ export default async function AnimePage({ params }: AnimePageProps) {
     notFound();
   }
 
-  const posterUrl = resolveShikimoriImageUrl(anime.image_url);
+  const posterUrl = getPosterUrl(anime.image_url);
   const cleanSynopsis = cleanShikimoriText(anime.synopsis);
 
   return (

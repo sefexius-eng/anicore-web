@@ -2,12 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const SHIKIMORI_BASE_URL = "https://shikimori.one";
-
-function resolveShikimoriImageUrl(url: string): string {
-  return url.startsWith("/") ? `${SHIKIMORI_BASE_URL}${url}` : url;
-}
+import { getPosterUrl } from "@/lib/poster";
 
 interface AnimeCardProps {
   id: number;
@@ -18,7 +13,7 @@ interface AnimeCardProps {
 
 export function AnimeCard({ id, title, image_url, score }: AnimeCardProps) {
   const formattedScore = score !== null ? score.toFixed(2) : "N/A";
-  const posterUrl = resolveShikimoriImageUrl(image_url);
+  const posterUrl = getPosterUrl(image_url);
 
   return (
     <Link href={`/anime/${id}`} className="block">
