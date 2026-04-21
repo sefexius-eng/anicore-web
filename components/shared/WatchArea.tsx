@@ -1,16 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   type TranslationOption,
   TranslationSidebar,
 } from "@/components/shared/translation-sidebar";
 import { Button } from "@/components/ui/button";
+import type { AnimeFranchiseSeasonItem } from "@/services/jikanApi";
 import { cn } from "@/lib/utils";
 
 interface WatchAreaProps {
   malId: number | string;
+  franchiseSeasons: AnimeFranchiseSeasonItem[];
 }
 
 interface KodikPlayerResponse {
@@ -74,7 +77,8 @@ function resolveActiveSeason(
   return seasons[0] ?? 1;
 }
 
-export function WatchArea({ malId }: WatchAreaProps) {
+export function WatchArea({ malId, franchiseSeasons }: WatchAreaProps) {
+  const router = useRouter();
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [playerLink, setPlayerLink] = useState<string | null>(null);
   const [translations, setTranslations] = useState<TranslationOption[]>([]);
@@ -89,6 +93,20 @@ export function WatchArea({ malId }: WatchAreaProps) {
   React.useEffect(() => {
     console.log("[WatchArea] Available translations:", translations);
   }, [translations]);
+
+  const currentMalId = React.useMemo(() => Number(malId), [malId]);
+
+  const franchiseSeasonButtons = React.useMemo(() => {
+    if (Array.isArray(franchiseSeasons) && franchiseSeasons.length > 0) {
+      return franchiseSeasons;
+    }
+
+    if (Number.isInteger(currentMalId) && currentMalId > 0) {
+      return [{ id: currentMalId, order: 1, year: null, label: "1 сезон" }];
+    }
+
+    return [];
+  }, [currentMalId, franchiseSeasons]);
 
   const loadPlayer = React.useCallback(
     async (translationId: number | null, preferredSeason: number | null) => {
@@ -215,6 +233,17 @@ export function WatchArea({ malId }: WatchAreaProps) {
     [playerLink],
   );
 
+  const handleFranchiseSeasonSelect = React.useCallback(
+    (seasonAnimeId: number) => {
+      if (seasonAnimeId === currentMalId) {
+        return;
+      }
+
+      router.push(`/anime/${seasonAnimeId}`);
+    },
+    [currentMalId, router],
+  );
+
   const activeTranslation =
     translations.find((translation) => translation.id === activeTranslationId) ?? null;
 
@@ -239,28 +268,57 @@ export function WatchArea({ malId }: WatchAreaProps) {
           <div className="rounded-xl border border-neutral-700/80 bg-neutral-950/80 p-1.5">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="px-2 text-[0.65rem] font-semibold tracking-[0.12em] text-neutral-400 uppercase">
-                Сезон
+                Франшиза
               </span>
 
               <div className="flex flex-wrap gap-1">
-                {availableSeasons.map((season) => (
+                {franchiseSeasonButtons.map((season) => (
                   <button
-                    key={season}
+                    key={season.id}
                     type="button"
-                    onClick={() => handleSeasonSelect(season)}
+                    onClick={() => handleFranchiseSeasonSelect(season.id)}
+                    title={`MAL ID: ${season.id}`}
                     className={cn(
                       "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-                      activeSeason === season
+                      season.id === currentMalId
                         ? "bg-cyan-500/20 text-cyan-200"
                         : "bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white",
                     )}
                   >
-                    {season}
+                    {season.label}
                   </button>
                 ))}
               </div>
             </div>
           </div>
+
+          {availableSeasons.length > 1 && (
+            <div className="rounded-xl border border-neutral-700/80 bg-neutral-950/80 p-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="px-2 text-[0.65rem] font-semibold tracking-[0.12em] text-neutral-400 uppercase">
+                  Плеер
+                </span>
+
+                <div className="flex flex-wrap gap-1">
+                  {availableSeasons.map((season) => (
+                    <button
+                      key={season}
+                      type="button"
+                      onClick={() => handleSeasonSelect(season)}
+                      className={cn(
+                        "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                        activeSeason === season
+                          ? "bg-cyan-500/20 text-cyan-200"
+                          : "bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white",
+                      )}
+                    >
+                      S{season}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           <Button
             type="button"
@@ -276,7 +334,7 @@ export function WatchArea({ malId }: WatchAreaProps) {
       <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border/60 bg-black">
         {iframeSrc ? (
           <iframe
-            key={`season-${activeSeason ?? "default"}`}
+            key={activeSeason}
             src={iframeSrc}
             title="Kodik player"
             width="100%"

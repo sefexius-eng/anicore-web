@@ -5,7 +5,11 @@ import { Footer } from "@/components/shared/footer";
 import { Navbar } from "@/components/shared/navbar";
 import { WatchArea } from "@/components/shared/WatchArea";
 import { getPosterUrl } from "@/lib/poster";
-import { getAnimeDetailsById } from "@/services/jikanApi";
+import {
+  type AnimeFranchiseSeasonItem,
+  getAnimeDetailsById,
+  getAnimeFranchiseSeasons,
+} from "@/services/jikanApi";
 
 interface AnimePageProps {
   params: Promise<{ id: string }>;
@@ -30,6 +34,14 @@ export default async function AnimePage({ params }: AnimePageProps) {
     notFound();
   }
 
+  let franchiseSeasons: AnimeFranchiseSeasonItem[] = [];
+
+  try {
+    franchiseSeasons = await getAnimeFranchiseSeasons(numericId);
+  } catch {
+    franchiseSeasons = [{ id: numericId, order: 1, year: null, label: "1 сезон" }];
+  }
+
   const posterUrl = getPosterUrl(anime.image_url);
   const cleanSynopsis = cleanShikimoriText(anime.synopsis);
 
@@ -42,7 +54,7 @@ export default async function AnimePage({ params }: AnimePageProps) {
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-14 pt-8 sm:px-6 lg:px-8">
         <section className="space-y-6">
           <div className="rounded-3xl border border-border/60 bg-card/70 p-5 shadow-2xl backdrop-blur-sm sm:p-6">
-            <WatchArea malId={numericId} />
+            <WatchArea malId={numericId} franchiseSeasons={franchiseSeasons} />
           </div>
 
           <section className="rounded-3xl border border-border/60 bg-card/70 p-5 shadow-2xl backdrop-blur-sm sm:p-6">

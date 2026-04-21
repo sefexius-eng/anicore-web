@@ -12,9 +12,28 @@ export interface AnimeDetailsItem extends AnimeShowcaseItem {
   genres: string[];
 }
 
+export interface AnimeFranchiseSeasonItem {
+  id: number;
+  order: number;
+  year: number | null;
+  label: string;
+}
+
 interface ShikimoriGenre {
   name?: string | null;
   russian?: string | null;
+}
+
+interface ShikimoriFranchiseNode {
+  id?: number;
+  kind?: string | null;
+  year?: number | null;
+}
+
+interface ShikimoriFranchiseResponse {
+  current_id?: number;
+  nodes?: ShikimoriFranchiseNode[];
+  links?: unknown[];
 }
 
 interface ShikimoriAnimeResponse {
@@ -191,4 +210,77 @@ export async function searchAnime(
   }
 
   return payload.map(toAnimeShowcaseItem);
+}
+
+function isTvKind(kind: string | null | undefined): boolean {
+  if (typeof kind !== "string") {
+    return false;
+  }
+
+  const normalizedKind = kind.trim().toLowerCase();
+
+  return normalizedKind === "tv" || normalizedKind.startsWith("tv ");
+}
+
+export async function getAnimeFranchiseSeasons(
+  id: number,
+): Promise<AnimeFranchiseSeasonItem[]> {
+  const response = await fetch(`${SHIKIMORI_API_BASE_URL}/animes/${id}/franchise`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+    next: {
+      revalidate: 60 * 60,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Shikimori franchise request failed for ID ${id}: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as ShikimoriFranchiseResponse;
+  const tvNodes = Array.isArray(payload.nodes)
+    ? payload.nodes
+        .filter(
+          (node): node is ShikimoriFranchiseNode & { id: number } =>
+            typeof node.id === "number" && isTvKind(node.kind),
+        )
+        .map((node, index) => ({
+          id: node.id,
+          year: typeof node.year === "number" ? node.year : null,
+          sourceIndex: index,
+        }))
+    : [];
+
+  const deduplicatedNodes = Array.from(
+    new Map(tvNodes.map((node) => [node.id, node])).values(),
+  );
+
+  deduplicatedNodes.sort((left, right) => {
+    if (left.year !== null && right.year !== null && left.year !== right.year) {
+      return left.year - right.year;
+    }
+
+    if (left.year !== null && right.year === null) {
+      return -1;
+    }
+
+    if (left.year === null && right.year !== null) {
+      return 1;
+    }
+
+    return left.sourceIndex - right.sourceIndex;
+  });
+
+  if (deduplicatedNodes.length === 0) {
+    return [{ id, order: 1, year: null, label: "1 сезон" }];
+  }
+
+  return deduplicatedNodes.map((node, index) => ({
+    id: node.id,
+    order: index + 1,
+    year: node.year,
+    label: `${index + 1} сезон`,
+  }));
 }
