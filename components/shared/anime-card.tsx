@@ -3,6 +3,12 @@ import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+const SHIKIMORI_BASE_URL = "https://shikimori.one";
+
+function resolveShikimoriImageUrl(url: string): string {
+  return url.startsWith("/") ? `${SHIKIMORI_BASE_URL}${url}` : url;
+}
+
 interface AnimeCardProps {
   id: number;
   title: string;
@@ -12,13 +18,14 @@ interface AnimeCardProps {
 
 export function AnimeCard({ id, title, image_url, score }: AnimeCardProps) {
   const formattedScore = score !== null ? score.toFixed(2) : "N/A";
+  const posterUrl = resolveShikimoriImageUrl(image_url);
 
   return (
     <Link href={`/anime/${id}`} className="block">
       <Card className="overflow-hidden border-border/70 bg-card/80 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:scale-105 hover:ring-2 hover:ring-primary cursor-pointer">
         <div className="relative aspect-[2/3] w-full overflow-hidden">
           <Image
-            src={image_url}
+            src={posterUrl}
             alt={title}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"

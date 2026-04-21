@@ -10,6 +10,16 @@ interface AnimePageProps {
   params: Promise<{ id: string }>;
 }
 
+const SHIKIMORI_BASE_URL = "https://shikimori.one";
+
+function resolveShikimoriImageUrl(url: string): string {
+  return url.startsWith("/") ? `${SHIKIMORI_BASE_URL}${url}` : url;
+}
+
+function cleanShikimoriText(text: string): string {
+  return text.replace(/\[[^\]]+\]/g, "").trim();
+}
+
 export default async function AnimePage({ params }: AnimePageProps) {
   const { id } = await params;
   const numericId = Number(id);
@@ -24,6 +34,9 @@ export default async function AnimePage({ params }: AnimePageProps) {
   } catch {
     notFound();
   }
+
+  const posterUrl = resolveShikimoriImageUrl(anime.image_url);
+  const cleanSynopsis = cleanShikimoriText(anime.synopsis);
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden">
@@ -42,7 +55,7 @@ export default async function AnimePage({ params }: AnimePageProps) {
               <div className="relative mx-auto w-full max-w-[220px] overflow-hidden rounded-2xl border border-border/70 bg-muted/20">
                 <div className="relative aspect-[2/3] w-full">
                   <Image
-                    src={anime.image_url}
+                    src={posterUrl}
                     alt={anime.title}
                     fill
                     sizes="(max-width: 768px) 70vw, 220px"
@@ -70,7 +83,7 @@ export default async function AnimePage({ params }: AnimePageProps) {
                 </div>
 
                 <p className="text-sm leading-7 whitespace-pre-line text-muted-foreground sm:text-base">
-                  {anime.synopsis}
+                  {cleanSynopsis}
                 </p>
               </div>
             </div>
