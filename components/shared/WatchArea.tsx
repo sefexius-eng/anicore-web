@@ -276,6 +276,7 @@ export function WatchArea({ malId }: WatchAreaProps) {
       <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border/60 bg-black">
         {iframeSrc ? (
           <iframe
+            key={`season-${activeSeason ?? "default"}`}
             src={iframeSrc}
             title="Kodik player"
             width="100%"

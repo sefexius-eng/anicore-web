@@ -157,7 +157,7 @@ export async function getAnimeDetailsById(
 
 export async function searchAnime(
   query: string,
-  limit = 10,
+  limit = 20,
 ): Promise<AnimeShowcaseItem[]> {
   const searchQuery = query.trim();
 

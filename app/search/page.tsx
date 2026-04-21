@@ -16,7 +16,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   if (query) {
     try {
-      results = await searchAnime(query, 10);
+      results = await searchAnime(query, 20);
     } catch {
       hasSearchError = true;
     }
