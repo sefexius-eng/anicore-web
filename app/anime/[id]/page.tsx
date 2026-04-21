@@ -39,7 +39,7 @@ export default async function AnimePage({ params }: AnimePageProps) {
   try {
     franchiseSeasons = await getAnimeFranchiseSeasons(numericId);
   } catch {
-    franchiseSeasons = [{ id: numericId, order: 1, year: null, label: "1 сезон" }];
+    franchiseSeasons = [{ id: numericId, order: 1, year: null, title: anime.title }];
   }
 
   const posterUrl = getPosterUrl(anime.image_url);

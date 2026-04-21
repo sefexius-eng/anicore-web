@@ -16,7 +16,7 @@ export interface AnimeFranchiseSeasonItem {
   id: number;
   order: number;
   year: number | null;
-  label: string;
+  title: string;
 }
 
 interface ShikimoriGenre {
@@ -27,6 +27,8 @@ interface ShikimoriGenre {
 interface ShikimoriFranchiseNode {
   id?: number;
   kind?: string | null;
+  name?: string | null;
+  russian?: string | null;
   year?: number | null;
 }
 
@@ -219,7 +221,11 @@ function isTvKind(kind: string | null | undefined): boolean {
 
   const normalizedKind = kind.trim().toLowerCase();
 
-  return normalizedKind === "tv" || normalizedKind.startsWith("tv ");
+  return (
+    normalizedKind === "tv" ||
+    normalizedKind === "tv сериал" ||
+    normalizedKind === "tv series"
+  );
 }
 
 export async function getAnimeFranchiseSeasons(
@@ -249,6 +255,8 @@ export async function getAnimeFranchiseSeasons(
         .map((node, index) => ({
           id: node.id,
           year: typeof node.year === "number" ? node.year : null,
+          title:
+            node.russian?.trim() || node.name?.trim() || `${index + 1} сезон`,
           sourceIndex: index,
         }))
     : [];
@@ -274,13 +282,13 @@ export async function getAnimeFranchiseSeasons(
   });
 
   if (deduplicatedNodes.length === 0) {
-    return [{ id, order: 1, year: null, label: "1 сезон" }];
+    return [{ id, order: 1, year: null, title: "1 сезон" }];
   }
 
   return deduplicatedNodes.map((node, index) => ({
     id: node.id,
     order: index + 1,
     year: node.year,
-    label: `${index + 1} сезон`,
+    title: node.title,
   }));
 }

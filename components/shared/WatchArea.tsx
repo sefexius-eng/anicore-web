@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import {
   type TranslationOption,
@@ -78,12 +78,9 @@ function resolveActiveSeason(
 }
 
 export function WatchArea({ malId, franchiseSeasons }: WatchAreaProps) {
-  const router = useRouter();
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
-  const [playerLink, setPlayerLink] = useState<string | null>(null);
   const [translations, setTranslations] = useState<TranslationOption[]>([]);
   const [activeTranslationId, setActiveTranslationId] = useState<number | null>(null);
-  const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
   const [activeSeason, setActiveSeason] = useState<number | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,7 +99,7 @@ export function WatchArea({ malId, franchiseSeasons }: WatchAreaProps) {
     }
 
     if (Number.isInteger(currentMalId) && currentMalId > 0) {
-      return [{ id: currentMalId, order: 1, year: null, label: "1 сезон" }];
+      return [{ id: currentMalId, order: 1, year: null, title: "1 сезон" }];
     }
 
     return [];
@@ -121,9 +118,7 @@ export function WatchArea({ malId, franchiseSeasons }: WatchAreaProps) {
       if (translationId === null) {
         setTranslations([]);
         setActiveTranslationId(null);
-        setAvailableSeasons([]);
         setActiveSeason(null);
-        setPlayerLink(null);
       }
 
       try {
@@ -179,9 +174,7 @@ export function WatchArea({ malId, franchiseSeasons }: WatchAreaProps) {
         const normalizedLink = normalizeKodikPlayerLink(data.link);
 
         setActiveTranslationId(resolvedActiveTranslationId);
-        setAvailableSeasons(normalizedSeasons);
         setActiveSeason(resolvedSeason);
-        setPlayerLink(normalizedLink);
         setIframeSrc(buildKodikIframeSrc(normalizedLink, resolvedSeason));
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -192,8 +185,6 @@ export function WatchArea({ malId, franchiseSeasons }: WatchAreaProps) {
           error instanceof Error ? error.message : "Failed to load the Kodik player.",
         );
         setIframeSrc(null);
-        setPlayerLink(null);
-        setAvailableSeasons([]);
         setActiveSeason(null);
       } finally {
         if (abortControllerRef.current === controller && !controller.signal.aborted) {
@@ -222,28 +213,6 @@ export function WatchArea({ malId, franchiseSeasons }: WatchAreaProps) {
     [activeSeason, loadPlayer],
   );
 
-  const handleSeasonSelect = React.useCallback(
-    (season: number) => {
-      setActiveSeason(season);
-
-      if (playerLink) {
-        setIframeSrc(buildKodikIframeSrc(playerLink, season));
-      }
-    },
-    [playerLink],
-  );
-
-  const handleFranchiseSeasonSelect = React.useCallback(
-    (seasonAnimeId: number) => {
-      if (seasonAnimeId === currentMalId) {
-        return;
-      }
-
-      router.push(`/anime/${seasonAnimeId}`);
-    },
-    [currentMalId, router],
-  );
-
   const activeTranslation =
     translations.find((translation) => translation.id === activeTranslationId) ?? null;
 
@@ -268,57 +237,41 @@ export function WatchArea({ malId, franchiseSeasons }: WatchAreaProps) {
           <div className="rounded-xl border border-neutral-700/80 bg-neutral-950/80 p-1.5">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="px-2 text-[0.65rem] font-semibold tracking-[0.12em] text-neutral-400 uppercase">
-                Франшиза
+                Сезоны
               </span>
 
               <div className="flex flex-wrap gap-1">
-                {franchiseSeasonButtons.map((season) => (
-                  <button
-                    key={season.id}
-                    type="button"
-                    onClick={() => handleFranchiseSeasonSelect(season.id)}
-                    title={`MAL ID: ${season.id}`}
-                    className={cn(
-                      "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-                      season.id === currentMalId
-                        ? "bg-cyan-500/20 text-cyan-200"
-                        : "bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white",
-                    )}
-                  >
-                    {season.label}
-                  </button>
-                ))}
+                {franchiseSeasonButtons.map((season) => {
+                  const isCurrentSeason = season.id === currentMalId;
+                  const seasonClasses = cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                    isCurrentSeason
+                      ? "bg-cyan-500/20 text-cyan-200"
+                      : "bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white",
+                  );
+
+                  if (isCurrentSeason) {
+                    return (
+                      <span key={season.id} className={seasonClasses} title={`MAL ID: ${season.id}`}>
+                        {season.title}
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={season.id}
+                      href={`/anime/${season.id}`}
+                      className={seasonClasses}
+                      title={`MAL ID: ${season.id}`}
+                    >
+                      {season.title}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           </div>
-
-          {availableSeasons.length > 1 && (
-            <div className="rounded-xl border border-neutral-700/80 bg-neutral-950/80 p-1.5">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="px-2 text-[0.65rem] font-semibold tracking-[0.12em] text-neutral-400 uppercase">
-                  Плеер
-                </span>
-
-                <div className="flex flex-wrap gap-1">
-                  {availableSeasons.map((season) => (
-                    <button
-                      key={season}
-                      type="button"
-                      onClick={() => handleSeasonSelect(season)}
-                      className={cn(
-                        "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-                        activeSeason === season
-                          ? "bg-cyan-500/20 text-cyan-200"
-                          : "bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white",
-                      )}
-                    >
-                      S{season}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
 
           <Button
             type="button"
