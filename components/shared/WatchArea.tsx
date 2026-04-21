@@ -2,21 +2,20 @@
 
 import React, { useState } from "react";
 
+import {
+  type TranslationOption,
+  TranslationSidebar,
+} from "@/components/shared/translation-sidebar";
+import { Button } from "@/components/ui/button";
+
 interface WatchAreaProps {
   malId: number | string;
-}
-
-type TranslationType = "voice" | "subtitles";
-
-interface TranslationOption {
-  id: number;
-  title: string;
-  type: TranslationType;
 }
 
 interface KodikPlayerResponse {
   link?: string;
   translations?: TranslationOption[];
+  activeTranslationId?: number | null;
   error?: string;
 }
 
@@ -37,24 +36,41 @@ function isTranslationOption(value: unknown): value is TranslationOption {
 export function WatchArea({ malId }: WatchAreaProps) {
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [translations, setTranslations] = useState<TranslationOption[]>([]);
+  const [activeTranslationId, setActiveTranslationId] = useState<number | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
 
   React.useEffect(() => {
     console.log("[WatchArea] Available translations:", translations);
   }, [translations]);
 
-  React.useEffect(() => {
-    const controller = new AbortController();
+  const loadPlayer = React.useCallback(
+    async (translationId: number | null) => {
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
-    async function loadPlayer() {
       setIsLoading(true);
       setErrorMessage(null);
       setIframeSrc(null);
-      setTranslations([]);
+
+      if (translationId === null) {
+        setTranslations([]);
+        setActiveTranslationId(null);
+      }
 
       try {
-        const response = await fetch("/api/kodik?malId=" + malId, {
+        const searchParams = new URLSearchParams({
+          malId: String(malId),
+        });
+
+        if (typeof translationId === "number") {
+          searchParams.set("translation_id", String(translationId));
+        }
+
+        const response = await fetch(`/api/kodik?${searchParams.toString()}`, {
           method: "GET",
           signal: controller.signal,
         });
@@ -71,9 +87,13 @@ export function WatchArea({ malId }: WatchAreaProps) {
 
         setTranslations(availableTranslations);
 
-        const iframeSrc = `https:${data.link}?translations=false`;
+        const resolvedActiveTranslationId =
+          typeof data.activeTranslationId === "number"
+            ? data.activeTranslationId
+            : availableTranslations[0]?.id ?? null;
 
-        setIframeSrc(iframeSrc);
+        setActiveTranslationId(resolvedActiveTranslationId);
+        setIframeSrc(`https:${data.link}?translations=false`);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -83,28 +103,61 @@ export function WatchArea({ malId }: WatchAreaProps) {
           error instanceof Error ? error.message : "Failed to load the Kodik player.",
         );
         setIframeSrc(null);
-        setTranslations([]);
       } finally {
-        if (!controller.signal.aborted) {
+        if (abortControllerRef.current === controller && !controller.signal.aborted) {
           setIsLoading(false);
         }
       }
-    }
+    },
+    [malId],
+  );
 
-    void loadPlayer();
+  React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadPlayer(null);
 
-    return () => controller.abort();
-  }, [malId]);
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, [loadPlayer]);
+
+  const handleTranslationSelect = React.useCallback(
+    (translationId: number) => {
+      setActiveTranslationId(translationId);
+      setIsSidebarOpen(false);
+      void loadPlayer(translationId);
+    },
+    [loadPlayer],
+  );
+
+  const activeTranslation =
+    translations.find((translation) => translation.id === activeTranslationId) ?? null;
 
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Смотреть онлайн
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {isLoading ? "Загрузка плеера..." : errorMessage ? "Плеер недоступен" : "Kodik iframe"}
-        </p>
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+            Смотреть онлайн
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {isLoading ? "Загрузка плеера..." : errorMessage ? "Плеер недоступен" : "Kodik iframe"}
+          </p>
+          {activeTranslation && (
+            <p className="text-xs text-cyan-300">
+              Активная озвучка: {activeTranslation.title}
+            </p>
+          )}
+        </div>
+
+        <Button
+          type="button"
+          variant="secondary"
+          className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800"
+          onClick={() => setIsSidebarOpen(true)}
+        >
+          Озвучки
+        </Button>
       </div>
 
       <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border/60 bg-black">
@@ -124,6 +177,14 @@ export function WatchArea({ malId }: WatchAreaProps) {
           </div>
         )}
       </div>
+
+      <TranslationSidebar
+        open={isSidebarOpen}
+        onOpenChange={setIsSidebarOpen}
+        translations={translations}
+        activeTranslationId={activeTranslationId}
+        onSelectTranslation={handleTranslationSelect}
+      />
     </section>
   );
 }

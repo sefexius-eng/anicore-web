@@ -31,6 +31,26 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const malId = request.nextUrl.searchParams.get("malId");
+  const translationIdParam = request.nextUrl.searchParams.get("translation_id");
+
+  let requestedTranslationId: number | null = null;
+
+  if (translationIdParam !== null) {
+    const parsedTranslationId = Number(translationIdParam);
+
+    if (!Number.isInteger(parsedTranslationId) || parsedTranslationId <= 0) {
+      return NextResponse.json(
+        {
+          error: "Invalid translation_id search parameter.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    requestedTranslationId = parsedTranslationId;
+  }
 
   if (!malId) {
     return NextResponse.json(
@@ -75,11 +95,19 @@ export async function GET(request: NextRequest) {
 
     const data = (await response.json()) as KodikSearchResponse;
 
-    const playableResult = data.results?.find(
-      (result) => typeof result.link === "string" && result.link.length > 0,
+    const playableResults = (data.results ?? []).filter(
+      (result): result is KodikSearchResult & { link: string } =>
+        typeof result.link === "string" && result.link.length > 0,
     );
 
-    if (!playableResult?.link) {
+    const selectedResult =
+      requestedTranslationId === null
+        ? playableResults[0]
+        : playableResults.find(
+            (result) => result.translation?.id === requestedTranslationId,
+          ) ?? playableResults[0];
+
+    if (!selectedResult?.link) {
       return NextResponse.json(
         {
           error: "Kodik API returned no playable link.",
@@ -121,7 +149,11 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      link: playableResult.link,
+      link: selectedResult.link,
+      activeTranslationId:
+        typeof selectedResult.translation?.id === "number"
+          ? selectedResult.translation.id
+          : null,
       translations: Array.from(translationsMap.values()),
     });
   } catch (error) {
