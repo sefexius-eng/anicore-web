@@ -1,6 +1,4 @@
 import { AnimeCard } from "@/components/shared/anime-card";
-import { Footer } from "@/components/shared/footer";
-import { Navbar } from "@/components/shared/navbar";
 import { searchAnime } from "@/services/jikanApi";
 
 interface SearchPageProps {
@@ -23,12 +21,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.15),_transparent_45%),radial-gradient(circle_at_80%_20%,_rgba(99,102,241,0.2),_transparent_42%),radial-gradient(circle_at_20%_90%,_rgba(14,165,233,0.16),_transparent_45%)]" />
-
-      <Navbar />
-
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 pb-14 pt-8 sm:px-6 lg:px-8">
+    <div className="flex flex-col gap-6">
         <section className="space-y-3 rounded-3xl border border-border/60 bg-card/70 p-6 shadow-2xl backdrop-blur-sm">
           <p className="text-xs uppercase tracking-[0.16em] text-sky-300">Поиск аниме</p>
 
@@ -66,9 +59,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             Не удалось выполнить поиск через Shikimori API. Попробуйте повторить чуть позже.
           </p>
         )}
-      </main>
-
-      <Footer />
     </div>
   );
 }

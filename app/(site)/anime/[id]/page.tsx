@@ -1,8 +1,6 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 
-import { Footer } from "@/components/shared/footer";
-import { Navbar } from "@/components/shared/navbar";
 import { WatchArea } from "@/components/shared/WatchArea";
 import { getPosterUrl } from "@/lib/poster";
 import {
@@ -46,13 +44,7 @@ export default async function AnimePage({ params }: AnimePageProps) {
   const cleanSynopsis = cleanShikimoriText(anime.synopsis);
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.15),_transparent_45%),radial-gradient(circle_at_80%_20%,_rgba(99,102,241,0.2),_transparent_42%),radial-gradient(circle_at_20%_90%,_rgba(14,165,233,0.16),_transparent_45%)]" />
-
-      <Navbar />
-
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-14 pt-8 sm:px-6 lg:px-8">
-        <section className="space-y-6">
+    <section className="space-y-6">
           <div className="rounded-3xl border border-border/60 bg-card/70 p-5 shadow-2xl backdrop-blur-sm sm:p-6">
             <WatchArea malId={numericId} franchiseSeasons={franchiseSeasons} />
           </div>
@@ -95,10 +87,6 @@ export default async function AnimePage({ params }: AnimePageProps) {
               </div>
             </div>
           </section>
-        </section>
-      </main>
-
-      <Footer />
-    </div>
+    </section>
   );
 }
