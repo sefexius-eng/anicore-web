@@ -256,11 +256,26 @@ export function NavbarSearch() {
   };
 
   return (
-    <form
-      onSubmit={handleSearch}
-      className="order-3 flex w-full items-center gap-2 sm:order-2 sm:w-auto sm:max-w-xl sm:flex-1"
-    >
-      <div ref={searchContainerRef} className="relative min-w-0 flex-1">
+    <>
+      <style jsx global>{`
+        .search-results-container::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .search-results-container::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .search-results-container::-webkit-scrollbar-thumb {
+          background-color: #4b5563;
+          border-radius: 10px;
+        }
+      `}</style>
+      <form
+        onSubmit={handleSearch}
+        className="order-3 flex w-full items-center gap-2 sm:order-2 sm:w-auto sm:max-w-xl sm:flex-1"
+      >
+        <div ref={searchContainerRef} className="relative min-w-0 flex-1">
         <Input
           aria-label="РџРѕРёСЃРє Р°РЅРёРјРµ"
           aria-autocomplete="list"
@@ -295,7 +310,7 @@ export function NavbarSearch() {
               <ul
                 id={SEARCH_DROPDOWN_ID}
                 role="listbox"
-                className="dark-scrollbar max-h-80 overflow-y-auto overflow-x-hidden p-1.5"
+                className="search-results-container dark-scrollbar max-h-80 overflow-y-auto overflow-x-hidden p-1.5"
                 onMouseLeave={() => setActiveIndex(-1)}
               >
                 {results.map((anime, index) => {
@@ -358,6 +373,7 @@ export function NavbarSearch() {
         <span className="sr-only sm:hidden">РџРѕРёСЃРє</span>
         <span className="hidden sm:inline">РџРѕРёСЃРє</span>
       </Button>
-    </form>
+      </form>
+    </>
   );
 }

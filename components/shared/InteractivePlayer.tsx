@@ -94,26 +94,6 @@ function resolveActiveSeason(
   return seasons[0] ?? 1;
 }
 
-function resolveKodikMessagePayload(data: unknown): Record<string, unknown> | null {
-  if (typeof data === "object" && data !== null) {
-    return data as Record<string, unknown>;
-  }
-
-  if (typeof data !== "string") {
-    return null;
-  }
-
-  try {
-    const parsedData = JSON.parse(data);
-
-    return typeof parsedData === "object" && parsedData !== null
-      ? (parsedData as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [translations, setTranslations] = useState<TranslationOption[]>([]);
@@ -126,6 +106,11 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const lastSavedTimeRef = React.useRef(0);
+  const historyRef = React.useRef<InteractivePlayerHistory | null>(history);
+
+  React.useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
 
   React.useEffect(() => {
     lastSavedTimeRef.current = 0;
@@ -232,13 +217,22 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
 
   React.useEffect(() => {
     const handleMessage = (event: MessageEvent<unknown>) => {
-      if (!history) {
+      console.log("RAW IFRAME MESSAGE:", event.data);
+
+      const payload =
+        typeof event.data === "object" && event.data !== null
+          ? (event.data as { key?: unknown; value?: unknown })
+          : null;
+
+      if (payload?.key !== "kodik_player_time_update") {
         return;
       }
 
-      const payload = resolveKodikMessagePayload(event.data);
+      console.log("HISTORY MATCH:", payload.value);
 
-      if (payload?.key !== "kodik_player_time_update") {
+      const currentHistory = historyRef.current;
+
+      if (!currentHistory) {
         return;
       }
 
@@ -271,9 +265,9 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
       console.log("HISTORY DEBUG: iframe time update", { currentTime });
 
       addToWatchHistory({
-        id: history.id,
-        name: history.name,
-        image: history.image,
+        id: currentHistory.id,
+        name: currentHistory.name,
+        image: currentHistory.image,
         timestamp: Date.now(),
         stoppedAt: currentTime,
       });
@@ -284,7 +278,7 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [history]);
+  }, []);
 
   const handleTranslationSelect = React.useCallback(
     (translationId: number) => {

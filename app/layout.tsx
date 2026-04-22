@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,6 +30,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <Script id="deploy-debug-marker" strategy="afterInteractive">
+          {`console.log("=== СБОРКА ОБНОВЛЕНА: ТЕСТ 1 ===");`}
+        </Script>
         {children}
       </body>
     </html>
