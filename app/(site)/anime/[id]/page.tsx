@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 
-import { WatchArea } from "@/components/shared/WatchArea";
+import { WatchArea, type WatchAreaSeasonLink } from "@/components/shared/WatchArea";
 import { getPosterUrl } from "@/lib/poster";
 import {
   type AnimeFranchiseSeasonItem,
@@ -15,6 +15,28 @@ interface AnimePageProps {
 
 function cleanShikimoriText(text: string): string {
   return text.replace(/\[[^\]]+\]/g, "").trim();
+}
+
+function buildFranchiseSeasonLinks(
+  currentMalId: number,
+  franchiseSeasons: AnimeFranchiseSeasonItem[],
+): WatchAreaSeasonLink[] {
+  const normalizedSeasons =
+    franchiseSeasons.length > 0
+      ? franchiseSeasons
+      : [{ id: currentMalId, order: 1, year: null, title: "1 сезон" }];
+
+  return normalizedSeasons.map((season, index) => {
+    const fallbackLabel = `${season.order || index + 1} сезон`;
+    const label = season.title.trim() || fallbackLabel;
+
+    return {
+      id: season.id,
+      href: `/anime/${season.id}`,
+      label,
+      isCurrent: season.id === currentMalId,
+    };
+  });
 }
 
 export default async function AnimePage({ params }: AnimePageProps) {
@@ -42,11 +64,12 @@ export default async function AnimePage({ params }: AnimePageProps) {
 
   const posterUrl = getPosterUrl(anime.image_url);
   const cleanSynopsis = cleanShikimoriText(anime.synopsis);
+  const franchiseSeasonLinks = buildFranchiseSeasonLinks(numericId, franchiseSeasons);
 
   return (
     <section className="space-y-6">
           <div className="rounded-3xl border border-border/60 bg-card/70 p-5 shadow-2xl backdrop-blur-sm sm:p-6">
-            <WatchArea malId={numericId} franchiseSeasons={franchiseSeasons} />
+            <WatchArea malId={numericId} seasonLinks={franchiseSeasonLinks} />
           </div>
 
           <section className="rounded-3xl border border-border/60 bg-card/70 p-5 shadow-2xl backdrop-blur-sm sm:p-6">
