@@ -1,6 +1,6 @@
 export const WATCH_HISTORY_STORAGE_KEY = "anicore_history";
 export const WATCH_HISTORY_UPDATED_EVENT = "anicore:watch-history-updated";
-export const WATCH_HISTORY_MIN_SAVE_SECONDS = 120;
+export const WATCH_HISTORY_MIN_SAVE_SECONDS = 60;
 export const WATCH_HISTORY_SAVE_THROTTLE_MS = 5000;
 const MAX_HISTORY_ITEMS = 50;
 
@@ -10,6 +10,11 @@ export interface WatchHistoryItem {
   image: string;
   timestamp: number;
   stoppedAt: number;
+}
+
+interface WatchHistorySaveLog {
+  id: number;
+  currentTime: number;
 }
 
 function isWatchHistoryItem(value: unknown): value is WatchHistoryItem {
@@ -72,12 +77,19 @@ function notifyWatchHistoryUpdated() {
   window.dispatchEvent(new Event(WATCH_HISTORY_UPDATED_EVENT));
 }
 
-function persistWatchHistory(items: WatchHistoryItem[]): WatchHistoryItem[] {
+function persistWatchHistory(
+  items: WatchHistoryItem[],
+  saveLog?: WatchHistorySaveLog,
+): WatchHistoryItem[] {
   if (typeof window === "undefined") {
     return items;
   }
 
   const normalizedItems = normalizeHistory(items);
+
+  if (saveLog) {
+    console.log("History saved:", saveLog);
+  }
 
   window.localStorage.setItem(
     WATCH_HISTORY_STORAGE_KEY,
@@ -112,7 +124,10 @@ export function addToWatchHistory(item: WatchHistoryItem): WatchHistoryItem[] {
     ...readWatchHistory().filter((historyItem) => historyItem.id !== item.id),
   ];
 
-  return persistWatchHistory(nextItems);
+  return persistWatchHistory(nextItems, {
+    id: item.id,
+    currentTime: item.stoppedAt,
+  });
 }
 
 export function removeFromHistory(id: number): WatchHistoryItem[] {
