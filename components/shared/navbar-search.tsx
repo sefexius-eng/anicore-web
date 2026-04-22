@@ -276,103 +276,103 @@ export function NavbarSearch() {
         className="order-3 flex w-full items-center gap-2 sm:order-2 sm:w-auto sm:max-w-xl sm:flex-1"
       >
         <div ref={searchContainerRef} className="relative min-w-0 flex-1">
-        <Input
-          aria-label="РџРѕРёСЃРє Р°РЅРёРјРµ"
-          aria-autocomplete="list"
-          aria-controls={isDropdownVisible ? SEARCH_DROPDOWN_ID : undefined}
-          aria-expanded={isDropdownVisible}
-          aria-haspopup="listbox"
-          aria-activedescendant={activeDescendantId}
-          role="combobox"
-          placeholder="РќР°Р№С‚Рё С‚Р°Р№С‚Р», Р¶Р°РЅСЂ РёР»Рё СЃС‚СѓРґРёСЋ"
-          className="h-10 min-w-0 flex-1 bg-muted/40"
-          value={query}
-          onChange={handleInputChange}
-          onFocus={handleInputFocus}
-          onKeyDown={handleInputKeyDown}
-        />
+          <Input
+            aria-label="Поиск аниме"
+            aria-autocomplete="list"
+            aria-controls={isDropdownVisible ? SEARCH_DROPDOWN_ID : undefined}
+            aria-expanded={isDropdownVisible}
+            aria-haspopup="listbox"
+            aria-activedescendant={activeDescendantId}
+            role="combobox"
+            placeholder="Найти тайтл, жанр или студию"
+            className="h-10 min-w-0 flex-1 bg-muted/40"
+            value={query}
+            onChange={handleInputChange}
+            onFocus={handleInputFocus}
+            onKeyDown={handleInputKeyDown}
+          />
 
-        {isDropdownVisible && (
-          <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-xl border border-border/70 bg-popover/95 shadow-2xl backdrop-blur">
-            {isSearching ? (
-              <div className="space-y-2 p-3">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div key={`search-skeleton-${index}`} className="flex items-center gap-3">
-                    <Skeleton className="h-12 w-9 shrink-0 rounded-md" />
-                    <div className="flex-1 space-y-1.5">
-                      <Skeleton className="h-3 w-4/5" />
-                      <Skeleton className="h-3 w-2/5" />
+          {isDropdownVisible && (
+            <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-xl border border-border/70 bg-popover/95 shadow-2xl backdrop-blur">
+              {isSearching ? (
+                <div className="space-y-2 p-3">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={`search-skeleton-${index}`} className="flex items-center gap-3">
+                      <Skeleton className="h-12 w-9 shrink-0 rounded-md" />
+                      <div className="flex-1 space-y-1.5">
+                        <Skeleton className="h-3 w-4/5" />
+                        <Skeleton className="h-3 w-2/5" />
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : results.length > 0 ? (
-              <ul
-                id={SEARCH_DROPDOWN_ID}
-                role="listbox"
-                className="search-results-container dark-scrollbar max-h-80 overflow-y-auto overflow-x-hidden p-1.5"
-                onMouseLeave={() => setActiveIndex(-1)}
-              >
-                {results.map((anime, index) => {
-                  const isActive = activeIndex === index;
+                  ))}
+                </div>
+              ) : results.length > 0 ? (
+                <ul
+                  id={SEARCH_DROPDOWN_ID}
+                  role="listbox"
+                  className="search-results-container dark-scrollbar max-h-80 overflow-y-auto overflow-x-hidden p-1.5"
+                  onMouseLeave={() => setActiveIndex(-1)}
+                >
+                  {results.map((anime, index) => {
+                    const isActive = activeIndex === index;
 
-                  return (
-                    <li
-                      key={anime.id}
-                      id={`navbar-search-result-${anime.id}`}
-                      role="option"
-                      aria-selected={isActive}
-                    >
-                      <Link
-                        href={`/anime/${anime.id}`}
-                        className={cn(
-                          "flex items-center gap-3 rounded-lg px-2 py-2 transition-colors",
-                          isActive
-                            ? "bg-muted text-foreground"
-                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
-                        )}
-                        onMouseEnter={() => setActiveIndex(index)}
-                        onClick={closeDropdown}
+                    return (
+                      <li
+                        key={anime.id}
+                        id={`navbar-search-result-${anime.id}`}
+                        role="option"
+                        aria-selected={isActive}
                       >
-                        <div className="relative h-12 w-9 shrink-0 overflow-hidden rounded-md border border-border/60">
-                          <Image
-                            src={getPosterUrl(anime.image_url)}
-                            alt={anime.title}
-                            fill
-                            sizes="36px"
-                            className="object-cover"
-                          />
-                        </div>
+                        <Link
+                          href={`/anime/${anime.id}`}
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg px-2 py-2 transition-colors",
+                            isActive
+                              ? "bg-muted text-foreground"
+                              : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                          )}
+                          onMouseEnter={() => setActiveIndex(index)}
+                          onClick={closeDropdown}
+                        >
+                          <div className="relative h-12 w-9 shrink-0 overflow-hidden rounded-md border border-border/60">
+                            <Image
+                              src={getPosterUrl(anime.image_url)}
+                              alt={anime.title}
+                              fill
+                              sizes="36px"
+                              className="object-cover"
+                            />
+                          </div>
 
-                        <div className="min-w-0">
-                          <p className="line-clamp-1 text-sm font-medium text-foreground">
-                            {anime.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {anime.score !== null
-                              ? `РћС†РµРЅРєР°: ${anime.score.toFixed(2)}`
-                              : "РћС†РµРЅРєР°: N/A"}
-                          </p>
-                        </div>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="px-4 py-3 text-sm text-muted-foreground">
-                РџРѕ РІР°С€РµРјСѓ Р·Р°РїСЂРѕСЃСѓ РЅРёС‡РµРіРѕ РЅРµ РЅР°Р№РґРµРЅРѕ
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+                          <div className="min-w-0">
+                            <p className="line-clamp-1 text-sm font-medium text-foreground">
+                              {anime.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {anime.score !== null
+                                ? `Оценка: ${anime.score.toFixed(2)}`
+                                : "Оценка: N/A"}
+                            </p>
+                          </div>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="px-4 py-3 text-sm text-muted-foreground">
+                  По вашему запросу ничего не найдено
+                </p>
+              )}
+            </div>
+          )}
+        </div>
 
-      <Button type="submit" className="h-10">
-        <Search className="size-4 sm:hidden" />
-        <span className="sr-only sm:hidden">РџРѕРёСЃРє</span>
-        <span className="hidden sm:inline">РџРѕРёСЃРє</span>
-      </Button>
+        <Button type="submit" className="h-10">
+          <Search className="size-4 sm:hidden" />
+          <span className="sr-only sm:hidden">Поиск</span>
+          <span className="hidden sm:inline">Поиск</span>
+        </Button>
       </form>
     </>
   );

@@ -4,6 +4,14 @@ export const WATCH_HISTORY_MIN_SAVE_SECONDS = 60;
 export const WATCH_HISTORY_SAVE_THROTTLE_MS = 5000;
 const MAX_HISTORY_ITEMS = 50;
 
+export function formatTime(seconds: number): string {
+  const normalizedSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(normalizedSeconds / 60);
+  const remainingSeconds = normalizedSeconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
 export interface WatchHistoryItem {
   id: number;
   name: string;

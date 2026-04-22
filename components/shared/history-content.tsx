@@ -7,6 +7,7 @@ import { Trash2 } from "lucide-react";
 import { AnimeCard } from "@/components/shared/anime-card";
 import { Button } from "@/components/ui/button";
 import { useWatchHistory } from "@/hooks/useWatchHistory";
+import { formatTime } from "@/lib/watch-history";
 import { cn } from "@/lib/utils";
 
 export function HistoryContent() {
@@ -109,6 +110,11 @@ export function HistoryContent() {
                 title={item.name}
                 image_url={item.image}
                 score={null}
+                posterOverlay={
+                  <span className="inline-flex rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white shadow-lg ring-1 ring-white/10 backdrop-blur-sm sm:text-sm">
+                    Остановились на {formatTime(item.stoppedAt)}
+                  </span>
+                }
               />
             </div>
           ))}

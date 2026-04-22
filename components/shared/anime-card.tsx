@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -9,9 +10,10 @@ interface AnimeCardProps {
   title: string;
   image_url: string;
   score: number | null;
+  posterOverlay?: ReactNode;
 }
 
-export function AnimeCard({ id, title, image_url, score }: AnimeCardProps) {
+export function AnimeCard({ id, title, image_url, score, posterOverlay }: AnimeCardProps) {
   const formattedScore = score !== null ? score.toFixed(2) : "N/A";
   const posterUrl = getPosterUrl(image_url);
 
@@ -27,6 +29,12 @@ export function AnimeCard({ id, title, image_url, score }: AnimeCardProps) {
             className="object-cover transition-transform duration-500 hover:scale-105"
             priority={false}
           />
+
+          {posterOverlay ? (
+            <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10">
+              {posterOverlay}
+            </div>
+          ) : null}
         </div>
 
         <CardHeader className="p-4 pb-2">
