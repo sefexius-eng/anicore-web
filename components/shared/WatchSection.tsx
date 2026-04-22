@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface WatchSectionProps {
+  animeId?: number;
+  animeImage?: string;
   animeTitle: string;
   episodeId: string;
 }
@@ -16,10 +18,24 @@ interface StreamResponse {
   error?: string;
 }
 
-export function WatchSection({ animeTitle, episodeId }: WatchSectionProps) {
+export function WatchSection({
+  animeId,
+  animeImage,
+  animeTitle,
+  episodeId,
+}: WatchSectionProps) {
   const [streamSrc, setStreamSrc] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const watchHistoryMeta =
+    typeof animeId === "number" && animeId > 0 && typeof animeImage === "string"
+      ? {
+          id: animeId,
+          name: animeTitle,
+          image: animeImage,
+        }
+      : undefined;
 
   const loadStream = useCallback(async () => {
     setIsLoading(true);
@@ -64,7 +80,11 @@ export function WatchSection({ animeTitle, episodeId }: WatchSectionProps) {
       {isLoading && <Skeleton className="aspect-video w-full rounded-2xl" />}
 
       {streamSrc && (
-        <VideoPlayer src={streamSrc} title={`${animeTitle} - Episode 1`} />
+        <VideoPlayer
+          src={streamSrc}
+          title={`${animeTitle} - Episode 1`}
+          history={watchHistoryMeta}
+        />
       )}
 
       {!isLoading && !streamSrc && (

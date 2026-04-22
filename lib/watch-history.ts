@@ -1,5 +1,7 @@
 export const WATCH_HISTORY_STORAGE_KEY = "anicore_history";
 export const WATCH_HISTORY_UPDATED_EVENT = "anicore:watch-history-updated";
+export const WATCH_HISTORY_MIN_SAVE_SECONDS = 120;
+export const WATCH_HISTORY_SAVE_THROTTLE_MS = 5000;
 const MAX_HISTORY_ITEMS = 50;
 
 export interface WatchHistoryItem {
@@ -7,6 +9,7 @@ export interface WatchHistoryItem {
   name: string;
   image: string;
   timestamp: number;
+  stoppedAt: number;
 }
 
 function isWatchHistoryItem(value: unknown): value is WatchHistoryItem {
@@ -25,7 +28,9 @@ function isWatchHistoryItem(value: unknown): value is WatchHistoryItem {
     typeof item.image === "string" &&
     item.image.trim().length > 0 &&
     typeof item.timestamp === "number" &&
-    Number.isFinite(item.timestamp)
+    Number.isFinite(item.timestamp) &&
+    typeof item.stoppedAt === "number" &&
+    Number.isFinite(item.stoppedAt)
   );
 }
 
@@ -41,10 +46,16 @@ function normalizeHistory(items: unknown): WatchHistoryItem[] {
       continue;
     }
 
-    const existingItem = deduplicatedItems.get(value.id);
+    const normalizedValue = {
+      ...value,
+      timestamp: Math.floor(value.timestamp),
+      stoppedAt: Math.max(0, Math.floor(value.stoppedAt)),
+    };
 
-    if (!existingItem || value.timestamp > existingItem.timestamp) {
-      deduplicatedItems.set(value.id, value);
+    const existingItem = deduplicatedItems.get(normalizedValue.id);
+
+    if (!existingItem || normalizedValue.timestamp > existingItem.timestamp) {
+      deduplicatedItems.set(normalizedValue.id, normalizedValue);
     }
   }
 
@@ -100,6 +111,12 @@ export function addToWatchHistory(item: WatchHistoryItem): WatchHistoryItem[] {
     item,
     ...readWatchHistory().filter((historyItem) => historyItem.id !== item.id),
   ];
+
+  return persistWatchHistory(nextItems);
+}
+
+export function removeFromHistory(id: number): WatchHistoryItem[] {
+  const nextItems = readWatchHistory().filter((historyItem) => historyItem.id !== id);
 
   return persistWatchHistory(nextItems);
 }

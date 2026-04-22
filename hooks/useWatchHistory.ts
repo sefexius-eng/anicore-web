@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   addToWatchHistory,
   clearWatchHistory,
+  removeFromHistory,
   readWatchHistory,
   type WatchHistoryItem,
   WATCH_HISTORY_UPDATED_EVENT,
@@ -37,6 +38,12 @@ export function useWatchHistory() {
     setIsLoaded(true);
   };
 
+  const removeItem = (malId: number) => {
+    const nextItems = removeFromHistory(malId);
+    setItems(nextItems);
+    setIsLoaded(true);
+  };
+
   const resetHistory = () => {
     clearWatchHistory();
     setItems([]);
@@ -47,6 +54,7 @@ export function useWatchHistory() {
     items,
     isLoaded,
     addItem,
+    removeItem,
     clearHistory: resetHistory,
   };
 }

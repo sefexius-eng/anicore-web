@@ -1,4 +1,4 @@
-import { getPosterUrl } from "@/lib/poster";
+import { getPosterUrl, pickPosterUrl } from "@/lib/poster";
 
 export interface AnimeShowcaseItem {
   id: number;
@@ -66,13 +66,13 @@ function resolveImageUrl(path: string | null | undefined): string | null {
 }
 
 function resolvePosterUrl(payload: ShikimoriAnimeResponse): string {
-  return (
-    resolveImageUrl(payload.image?.original) ??
-    resolveImageUrl(payload.image?.preview) ??
-    resolveImageUrl(payload.image?.x96) ??
-    resolveImageUrl(payload.image?.x48) ??
-    FALLBACK_POSTER
-  );
+  return pickPosterUrl([
+    resolveImageUrl(payload.image?.original),
+    resolveImageUrl(payload.image?.preview),
+    resolveImageUrl(payload.image?.x96),
+    resolveImageUrl(payload.image?.x48),
+    FALLBACK_POSTER,
+  ]);
 }
 
 function resolveTitle(payload: ShikimoriAnimeResponse): string {
