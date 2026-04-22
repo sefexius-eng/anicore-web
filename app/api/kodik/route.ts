@@ -139,10 +139,6 @@ export async function GET(request: NextRequest) {
   try {
     const token = process.env.KODIK_TOKEN || "56a768d08f43091901c44b54fe970049";
 
-    if (!process.env.KODIK_TOKEN) {
-      console.warn("[kodik] Using public fallback token; set KODIK_TOKEN in the environment.");
-    }
-
     const response = await fetch(
       `https://kodik-api.com/search?token=${token}&shikimori_id=${malId}`,
       {
@@ -238,10 +234,18 @@ export async function GET(request: NextRequest) {
       translations: Array.from(translationsMap.values()),
     });
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch data from Kodik API.";
+    console.error("[kodik] failed to fetch player data", {
+      malId,
+      translationId: translationIdParam,
+      season: seasonParam,
+      error: message,
+    });
+
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to fetch data from Kodik API.",
+        error: message,
       },
       {
         status: 500,
