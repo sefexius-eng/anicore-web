@@ -21,11 +21,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useOnClickOutside } from "@/hooks/useOnClickOutside";
 import { getPosterUrl } from "@/lib/poster";
 import { cn } from "@/lib/utils";
-import { searchAnime, type AnimeShowcaseItem } from "@/services/jikanApi";
 
 const SEARCH_DEBOUNCE_MS = 350;
 const SEARCH_RESULTS_LIMIT = 6;
 const SEARCH_DROPDOWN_ID = "navbar-search-results";
+const SEARCH_ENDPOINT = "/api/search";
+
+interface AnimeShowcaseItem {
+  id: number;
+  title: string;
+  image_url: string;
+  score: number | null;
+}
+
+interface SearchApiResponse {
+  results?: AnimeShowcaseItem[];
+}
 
 export function NavbarSearch() {
   const [query, setQuery] = useState("");
@@ -37,6 +48,7 @@ export function NavbarSearch() {
   const [activeIndex, setActiveIndex] = useState(-1);
 
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
+  const activeSearchControllerRef = useRef<AbortController | null>(null);
   const router = useRouter();
 
   const closeDropdown = useCallback(() => {
@@ -58,34 +70,63 @@ export function NavbarSearch() {
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    let isCancelled = false;
-
     if (!debouncedQuery) {
+      activeSearchControllerRef.current?.abort();
+      activeSearchControllerRef.current = null;
+      setResults([]);
+      setIsSearching(false);
+      setHasSearched(false);
       return;
     }
+
+    activeSearchControllerRef.current?.abort();
+    const controller = new AbortController();
+    activeSearchControllerRef.current = controller;
 
     setIsSearching(true);
     setHasSearched(false);
     setIsDropdownOpen(true);
     setActiveIndex(-1);
 
-    void searchAnime(debouncedQuery, SEARCH_RESULTS_LIMIT)
+    const searchParams = new URLSearchParams({
+      q: debouncedQuery,
+      limit: String(SEARCH_RESULTS_LIMIT),
+    });
+
+    void fetch(`${SEARCH_ENDPOINT}?${searchParams.toString()}`, {
+      method: "GET",
+      signal: controller.signal,
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Search API request failed: ${response.status}`);
+        }
+
+        const payload = (await response.json()) as SearchApiResponse;
+
+        return Array.isArray(payload.results) ? payload.results : [];
+      })
       .then((items) => {
-        if (isCancelled) {
+        if (controller.signal.aborted) {
           return;
         }
 
         setResults(items);
       })
-      .catch(() => {
-        if (isCancelled) {
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        if (controller.signal.aborted) {
           return;
         }
 
         setResults([]);
       })
       .finally(() => {
-        if (isCancelled) {
+        if (controller.signal.aborted) {
           return;
         }
 
@@ -94,10 +135,21 @@ export function NavbarSearch() {
       });
 
     return () => {
-      isCancelled = true;
+      controller.abort();
+
+      if (activeSearchControllerRef.current === controller) {
+        activeSearchControllerRef.current = null;
+      }
     };
   }, [debouncedQuery]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    return () => {
+      activeSearchControllerRef.current?.abort();
+      activeSearchControllerRef.current = null;
+    };
+  }, []);
 
   const isDropdownVisible = useMemo(() => {
     if (!isDropdownOpen || !query.trim()) {
@@ -143,6 +195,8 @@ export function NavbarSearch() {
     setActiveIndex(-1);
 
     if (!nextQuery.trim()) {
+      activeSearchControllerRef.current?.abort();
+      activeSearchControllerRef.current = null;
       setResults([]);
       setIsSearching(false);
       setHasSearched(false);

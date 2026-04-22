@@ -1,3 +1,4 @@
+import "server-only";
 import { getPosterUrl, pickPosterUrl } from "@/lib/poster";
 
 export interface AnimeShowcaseItem {
