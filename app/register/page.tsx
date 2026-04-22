@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 const REGISTER_ERROR_MESSAGES = {
   invalid_email: "Укажите корректный email.",
@@ -84,7 +84,6 @@ async function registerUser(formData: FormData) {
     redirect("/register?error=future_birth_date");
   }
 
-  const prisma = getPrismaClient();
   const existingUser = await prisma.user.findUnique({
     where: {
       email,

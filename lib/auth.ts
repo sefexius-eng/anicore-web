@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 import { isAdult } from "@/lib/age";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 function normalizeBirthDate(value: Date | string | null | undefined) {
   if (!value) {
@@ -53,7 +53,6 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const prisma = getPrismaClient();
         const user = await prisma.user.findUnique({
           where: {
             email,
