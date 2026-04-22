@@ -295,7 +295,7 @@ export function NavbarSearch() {
               <ul
                 id={SEARCH_DROPDOWN_ID}
                 role="listbox"
-                className="max-h-80 overflow-y-auto overflow-x-hidden p-1.5"
+                className="dark-scrollbar max-h-80 overflow-y-auto overflow-x-hidden p-1.5"
                 onMouseLeave={() => setActiveIndex(-1)}
               >
                 {results.map((anime, index) => {

@@ -69,7 +69,15 @@ export default async function AnimePage({ params }: AnimePageProps) {
   return (
     <section className="space-y-6">
           <div className="rounded-3xl border border-border/60 bg-card/70 p-5 shadow-2xl backdrop-blur-sm sm:p-6">
-            <WatchArea malId={numericId} seasonLinks={franchiseSeasonLinks} />
+            <WatchArea
+              malId={numericId}
+              seasonLinks={franchiseSeasonLinks}
+              history={{
+                id: anime.id,
+                name: anime.title,
+                image: anime.image_url,
+              }}
+            />
           </div>
 
           <section className="rounded-3xl border border-border/60 bg-card/70 p-5 shadow-2xl backdrop-blur-sm sm:p-6">

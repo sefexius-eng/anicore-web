@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { InteractivePlayer } from "@/components/shared/InteractivePlayer";
+import type { WatchHistoryItem } from "@/lib/watch-history";
 import { cn } from "@/lib/utils";
 
 export interface WatchAreaSeasonLink {
@@ -13,9 +14,12 @@ export interface WatchAreaSeasonLink {
 interface WatchAreaProps {
   malId: number;
   seasonLinks: WatchAreaSeasonLink[];
+  history: WatchAreaHistory | null;
 }
 
-export function WatchArea({ malId, seasonLinks }: WatchAreaProps) {
+type WatchAreaHistory = Pick<WatchHistoryItem, "id" | "name" | "image">;
+
+export function WatchArea({ malId, seasonLinks, history }: WatchAreaProps) {
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -67,7 +71,7 @@ export function WatchArea({ malId, seasonLinks }: WatchAreaProps) {
         </div>
       </div>
 
-      <InteractivePlayer malId={malId} />
+      <InteractivePlayer malId={malId} history={history} />
     </section>
   );
 }

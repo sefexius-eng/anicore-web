@@ -13,10 +13,17 @@ import {
   type TranslationOption,
   TranslationSidebar,
 } from "@/components/shared/translation-sidebar";
+import {
+  addToWatchHistory,
+  WATCH_HISTORY_MIN_SAVE_SECONDS,
+  WATCH_HISTORY_SAVE_THROTTLE_MS,
+  type WatchHistoryItem,
+} from "@/lib/watch-history";
 import { cn } from "@/lib/utils";
 
 interface InteractivePlayerProps {
   malId: number;
+  history: InteractivePlayerHistory | null;
 }
 
 interface KodikPlayerResponse {
@@ -27,6 +34,13 @@ interface KodikPlayerResponse {
   activeSeason?: number;
   error?: string;
 }
+
+type InteractivePlayerHistory = Pick<WatchHistoryItem, "id" | "name" | "image">;
+
+const IFRAME_HISTORY_SAVE_GAP_SECONDS = Math.max(
+  1,
+  Math.floor(WATCH_HISTORY_SAVE_THROTTLE_MS / 1000),
+);
 
 function isTranslationOption(value: unknown): value is TranslationOption {
   if (typeof value !== "object" || value === null) {
@@ -80,7 +94,27 @@ function resolveActiveSeason(
   return seasons[0] ?? 1;
 }
 
-export function InteractivePlayer({ malId }: InteractivePlayerProps) {
+function resolveKodikMessagePayload(data: unknown): Record<string, unknown> | null {
+  if (typeof data === "object" && data !== null) {
+    return data as Record<string, unknown>;
+  }
+
+  if (typeof data !== "string") {
+    return null;
+  }
+
+  try {
+    const parsedData = JSON.parse(data);
+
+    return typeof parsedData === "object" && parsedData !== null
+      ? (parsedData as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [translations, setTranslations] = useState<TranslationOption[]>([]);
   const [activeTranslationId, setActiveTranslationId] = useState<number | null>(null);
@@ -91,6 +125,11 @@ export function InteractivePlayer({ malId }: InteractivePlayerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
+  const lastSavedTimeRef = React.useRef(0);
+
+  React.useEffect(() => {
+    lastSavedTimeRef.current = 0;
+  }, [history?.id, iframeSrc]);
 
   const loadPlayer = React.useCallback(
     async (translationId: number | null, preferredSeason: number | null) => {
@@ -190,6 +229,62 @@ export function InteractivePlayer({ malId }: InteractivePlayerProps) {
       abortControllerRef.current?.abort();
     };
   }, [loadPlayer]);
+
+  React.useEffect(() => {
+    const handleMessage = (event: MessageEvent<unknown>) => {
+      if (!history) {
+        return;
+      }
+
+      const payload = resolveKodikMessagePayload(event.data);
+
+      if (payload?.key !== "kodik_player_time_update") {
+        return;
+      }
+
+      const rawCurrentTime = payload.value;
+      const numericCurrentTime =
+        typeof rawCurrentTime === "number"
+          ? rawCurrentTime
+          : typeof rawCurrentTime === "string"
+            ? Number(rawCurrentTime)
+            : Number.NaN;
+
+      if (!Number.isFinite(numericCurrentTime)) {
+        return;
+      }
+
+      const currentTime = Math.max(0, Math.floor(numericCurrentTime));
+
+      if (currentTime <= WATCH_HISTORY_MIN_SAVE_SECONDS) {
+        return;
+      }
+
+      if (
+        Math.abs(currentTime - lastSavedTimeRef.current) <=
+        IFRAME_HISTORY_SAVE_GAP_SECONDS
+      ) {
+        return;
+      }
+
+      lastSavedTimeRef.current = currentTime;
+      console.log("HISTORY DEBUG: iframe time update", { currentTime });
+
+      addToWatchHistory({
+        id: history.id,
+        name: history.name,
+        image: history.image,
+        timestamp: Date.now(),
+        stoppedAt: currentTime,
+      });
+    };
+
+    window.addEventListener("message", handleMessage);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [history]);
 
   const handleTranslationSelect = React.useCallback(
     (translationId: number) => {
