@@ -19,8 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOnClickOutside } from "@/hooks/useOnClickOutside";
-import { getPosterUrl } from "@/lib/poster";
-import { cn } from "@/lib/utils";
+import { cn, getImageUrl } from "@/lib/utils";
 
 const SEARCH_DEBOUNCE_MS = 350;
 const SEARCH_RESULTS_LIMIT = 6;
@@ -336,7 +335,7 @@ export function NavbarSearch() {
                         >
                           <div className="relative h-12 w-9 shrink-0 overflow-hidden rounded-md border border-border/60">
                             <Image
-                              src={getPosterUrl(anime.image_url)}
+                              src={getImageUrl(anime.image_url)}
                               alt={anime.title}
                               fill
                               sizes="36px"

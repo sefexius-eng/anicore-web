@@ -2,7 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 
 import { WatchArea, type WatchAreaSeasonLink } from "@/components/shared/WatchArea";
-import { getPosterUrl } from "@/lib/poster";
+import { getImageUrl } from "@/lib/utils";
 import {
   type AnimeFranchiseSeasonItem,
   getAnimeDetailsById,
@@ -62,7 +62,7 @@ export default async function AnimePage({ params }: AnimePageProps) {
     franchiseSeasons = [{ id: numericId, order: 1, year: null, title: anime.title }];
   }
 
-  const posterUrl = getPosterUrl(anime.image_url);
+  const posterUrl = getImageUrl(anime.image_url);
   const cleanSynopsis = cleanShikimoriText(anime.synopsis);
   const franchiseSeasonLinks = buildFranchiseSeasonLinks(numericId, franchiseSeasons);
 

@@ -28,13 +28,13 @@ export function WatchArea({ malId, seasonLinks, history }: WatchAreaProps) {
             Смотреть онлайн
           </h2>
           <p className="text-sm text-muted-foreground">
-            Выберите озвучку и серию в интерактивном плеере.
+            Выберите озвучку или сразу запускайте встроенный плеер Kodik.
           </p>
         </div>
 
         <div className="rounded-xl border border-neutral-700/80 bg-neutral-950/80 p-1.5">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="px-2 text-[0.65rem] font-semibold tracking-[0.12em] text-neutral-400 uppercase">
+            <span className="px-2 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-neutral-400">
               Сезоны франшизы
             </span>
 

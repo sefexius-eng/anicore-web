@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPosterUrl } from "@/lib/poster";
+import { getImageUrl } from "@/lib/utils";
 
 interface AnimeCardProps {
   id: number;
@@ -15,7 +15,7 @@ interface AnimeCardProps {
 
 export function AnimeCard({ id, title, image_url, score, posterOverlay }: AnimeCardProps) {
   const formattedScore = score !== null ? score.toFixed(2) : "N/A";
-  const posterUrl = getPosterUrl(image_url);
+  const posterUrl = getImageUrl(image_url);
 
   return (
     <Link href={`/anime/${id}`} className="block">

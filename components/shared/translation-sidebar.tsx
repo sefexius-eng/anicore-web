@@ -76,7 +76,7 @@ export function TranslationSidebar({
                   )}
                 >
                   <p className="text-sm font-medium leading-tight">{translation.title}</p>
-                  <p className="mt-1 text-[0.65rem] font-semibold tracking-[0.14em] text-neutral-400 uppercase">
+                  <p className="mt-1 text-[0.65rem] font-semibold tracking-[0.14em] uppercase text-neutral-400">
                     {translation.type === "voice" ? "Озвучка" : "Субтитры"}
                   </p>
                 </button>
