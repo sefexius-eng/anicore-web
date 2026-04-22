@@ -1,4 +1,5 @@
 import "server-only";
+import { getViewerAccess } from "@/lib/auth";
 import { getPosterUrl, pickPosterUrl } from "@/lib/poster";
 
 export interface AnimeShowcaseItem {
@@ -57,6 +58,19 @@ interface ShikimoriAnimeResponse {
 
 const SHIKIMORI_API_BASE_URL = "https://shikimori.one/api";
 const FALLBACK_POSTER = getPosterUrl("/assets/globals/missing_original.jpg");
+const RESTRICTED_GENRE_NAMES = new Set([
+  "ecchi",
+  "hentai",
+  "этти",
+  "хентай",
+]);
+
+export class AdultContentBlockedError extends Error {
+  constructor(message = "Adult content is restricted for the current viewer.") {
+    super(message);
+    this.name = "AdultContentBlockedError";
+  }
+}
 
 function resolveImageUrl(path: string | null | undefined): string | null {
   if (typeof path !== "string" || !path.trim()) {
@@ -132,14 +146,49 @@ function resolveGenres(payload: ShikimoriAnimeResponse): string[] {
     .filter((genreName): genreName is string => genreName.length > 0);
 }
 
+function normalizeGenreName(name: string | null | undefined): string {
+  return name?.trim().toLowerCase() ?? "";
+}
+
+function hasRestrictedGenres(
+  payload: Pick<ShikimoriAnimeResponse, "genres">,
+): boolean {
+  if (!Array.isArray(payload.genres)) {
+    return false;
+  }
+
+  return payload.genres.some((genre) => {
+    const englishName = normalizeGenreName(genre.name);
+    const russianName = normalizeGenreName(genre.russian);
+
+    return (
+      RESTRICTED_GENRE_NAMES.has(englishName) ||
+      RESTRICTED_GENRE_NAMES.has(russianName)
+    );
+  });
+}
+
+async function assertAnimeAudienceAccess(
+  payload: Pick<ShikimoriAnimeResponse, "genres">,
+) {
+  const viewerAccess = await getViewerAccess();
+
+  if (viewerAccess.shouldFilterAdultContent && hasRestrictedGenres(payload)) {
+    throw new AdultContentBlockedError();
+  }
+}
+
+async function shouldFilterAdultContent() {
+  const viewerAccess = await getViewerAccess();
+  return viewerAccess.shouldFilterAdultContent;
+}
+
 async function fetchAnimePayload(id: number): Promise<ShikimoriAnimeResponse> {
   const response = await fetch(`${SHIKIMORI_API_BASE_URL}/animes/${id}`, {
     method: "GET",
+    cache: "no-store",
     headers: {
       Accept: "application/json",
-    },
-    next: {
-      revalidate: 60 * 60,
     },
   });
 
@@ -161,6 +210,7 @@ function toAnimeShowcaseItem(payload: ShikimoriAnimeResponse): AnimeShowcaseItem
 
 export async function getAnimeById(id: number): Promise<AnimeShowcaseItem> {
   const payload = await fetchAnimePayload(id);
+  await assertAnimeAudienceAccess(payload);
 
   return toAnimeShowcaseItem(payload);
 }
@@ -169,6 +219,7 @@ export async function getAnimeDetailsById(
   id: number,
 ): Promise<AnimeDetailsItem> {
   const payload = await fetchAnimePayload(id);
+  await assertAnimeAudienceAccess(payload);
 
   return {
     ...toAnimeShowcaseItem(payload),
@@ -191,16 +242,22 @@ export async function searchAnime(
     search: searchQuery,
     limit: String(limit),
   });
+  const filterAdultContent = await shouldFilterAdultContent();
 
-  const response = await fetch(`${SHIKIMORI_API_BASE_URL}/animes?${searchParams.toString()}`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
+  if (filterAdultContent) {
+    searchParams.set("censored", "true");
+  }
+
+  const response = await fetch(
+    `${SHIKIMORI_API_BASE_URL}/animes?${searchParams.toString()}`,
+    {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
     },
-    next: {
-      revalidate: 60,
-    },
-  });
+  );
 
   if (!response.ok) {
     throw new Error(`Shikimori search request failed: ${response.status}`);
@@ -212,7 +269,16 @@ export async function searchAnime(
     return [];
   }
 
-  return payload.map(toAnimeShowcaseItem);
+  const visiblePayload = filterAdultContent
+    ? payload.filter((anime) => !hasRestrictedGenres(anime))
+    : payload;
+
+  return visiblePayload.map(toAnimeShowcaseItem);
+}
+
+export async function assertAnimeAccessAllowedById(id: number) {
+  const payload = await fetchAnimePayload(id);
+  await assertAnimeAudienceAccess(payload);
 }
 
 function isTvKind(kind: string | null | undefined): boolean {
