@@ -28,11 +28,8 @@ export function AnimeCard({
   posterOverlay,
 }: AnimeCardProps) {
   const formattedScore = score !== null ? score.toFixed(2) : "N/A";
-  const getValidImageUrl = (imageObj?: AnimeImage | string | null) => {
-    const url =
-      typeof imageObj === "string"
-        ? imageObj
-        : imageObj?.original || imageObj?.preview || imageObj?.x160;
+  const getValidImageUrl = (imageObj?: AnimeImage | null) => {
+    const url = imageObj?.original || imageObj?.preview || imageObj?.x160;
 
     if (!url) {
       return "https://placehold.co/400x600/1a1a1a/ffffff?text=No+Image";
@@ -42,11 +39,7 @@ export function AnimeCard({
       return url;
     }
 
-    if (url.startsWith("/")) {
-      return `https://shikimori.one${url}`;
-    }
-
-    return `https://shikimori.one/${url}`;
+    return `https://desu.shikimori.one${url}`;
   };
 
   return (
@@ -54,7 +47,9 @@ export function AnimeCard({
       <Card className="cursor-pointer overflow-hidden border-border/70 bg-card/80 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:shadow-xl hover:ring-2 hover:ring-primary">
         <div className="relative aspect-[2/3] w-full overflow-hidden">
           <img
-            src={getValidImageUrl(image ?? image_url ?? null)}
+            src={getValidImageUrl(
+              image ?? (image_url ? { original: image_url } : null),
+            )}
             alt={title}
             className="w-full h-full object-cover"
             loading="lazy"
