@@ -9,6 +9,11 @@ const FEATURED_MAL_IDS = [61316, 51553, 59708, 56876, 62001] as const;
 interface AnimeShowcaseItem {
   id: number;
   title: string;
+  image: {
+    original?: string | null;
+    preview?: string | null;
+    x160?: string | null;
+  } | null;
   image_url: string;
   score: number | null;
 }
@@ -115,6 +120,7 @@ export default function Home() {
                 key={anime.id}
                 id={anime.id}
                 title={anime.title}
+                image={anime.image}
                 image_url={anime.image_url}
                 score={anime.score}
               />

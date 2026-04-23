@@ -4,26 +4,49 @@ import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+interface AnimeImage {
+  original?: string | null;
+  preview?: string | null;
+  x160?: string | null;
+}
+
 interface AnimeCardProps {
   id: number;
   title: string;
-  image_url: string;
+  image?: AnimeImage | null;
+  image_url?: string | null;
   score: number | null;
   posterOverlay?: ReactNode;
 }
 
-export function AnimeCard({ id, title, image_url, score, posterOverlay }: AnimeCardProps) {
+export function AnimeCard({
+  id,
+  title,
+  image,
+  image_url,
+  score,
+  posterOverlay,
+}: AnimeCardProps) {
   const formattedScore = score !== null ? score.toFixed(2) : "N/A";
-  const getValidImageUrl = (url?: string | null) => {
+  const getValidImageUrl = (imageObj?: AnimeImage | string | null) => {
+    const url =
+      typeof imageObj === "string"
+        ? imageObj
+        : imageObj?.original || imageObj?.preview || imageObj?.x160;
+
     if (!url) {
-      return "https://via.placeholder.com/225x320/1f2937/ffffff?text=No+Poster";
+      return "https://placehold.co/400x600/1a1a1a/ffffff?text=No+Image";
     }
 
     if (url.startsWith("http")) {
       return url;
     }
 
-    return `https://shikimori.one${url}`;
+    if (url.startsWith("/")) {
+      return `https://shikimori.one${url}`;
+    }
+
+    return `https://shikimori.one/${url}`;
   };
 
   return (
@@ -31,7 +54,7 @@ export function AnimeCard({ id, title, image_url, score, posterOverlay }: AnimeC
       <Card className="cursor-pointer overflow-hidden border-border/70 bg-card/80 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:shadow-xl hover:ring-2 hover:ring-primary">
         <div className="relative aspect-[2/3] w-full overflow-hidden">
           <img
-            src={getValidImageUrl(image_url)}
+            src={getValidImageUrl(image ?? image_url ?? null)}
             alt={title}
             className="w-full h-full object-cover"
             loading="lazy"

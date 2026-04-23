@@ -8,6 +8,11 @@ import { AnimeCard } from "@/components/shared/anime-card";
 interface AnimeShowcaseItem {
   id: number;
   title: string;
+  image: {
+    original?: string | null;
+    preview?: string | null;
+    x160?: string | null;
+  } | null;
   image_url: string;
   score: number | null;
 }
@@ -105,6 +110,7 @@ function SearchPageContent() {
               key={anime.id}
               id={anime.id}
               title={anime.title}
+              image={anime.image}
               image_url={anime.image_url}
               score={anime.score}
             />

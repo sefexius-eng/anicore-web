@@ -5,6 +5,11 @@ import { getPosterUrl, pickPosterUrl } from "@/lib/poster";
 export interface AnimeShowcaseItem {
   id: number;
   title: string;
+  image: {
+    original?: string | null;
+    preview?: string | null;
+    x160?: string | null;
+  } | null;
   image_url: string;
   score: number | null;
 }
@@ -51,6 +56,7 @@ interface ShikimoriAnimeResponse {
   image?: {
     original?: string | null;
     preview?: string | null;
+    x160?: string | null;
     x96?: string | null;
     x48?: string | null;
   };
@@ -101,6 +107,7 @@ function resolvePosterUrl(payload: ShikimoriAnimeResponse): string {
   return pickPosterUrl([
     resolveImageUrl(payload.image?.original),
     resolveImageUrl(payload.image?.preview),
+    resolveImageUrl(payload.image?.x160),
     resolveImageUrl(payload.image?.x96),
     resolveImageUrl(payload.image?.x48),
     FALLBACK_POSTER,
@@ -217,6 +224,13 @@ function toAnimeShowcaseItem(payload: ShikimoriAnimeResponse): AnimeShowcaseItem
   return {
     id: payload.id,
     title: resolveTitle(payload),
+    image: payload.image
+      ? {
+          original: payload.image.original ?? null,
+          preview: payload.image.preview ?? null,
+          x160: payload.image.x160 ?? payload.image.x96 ?? null,
+        }
+      : null,
     image_url: resolvePosterUrl(payload),
     score: resolveScore(payload.score),
   };

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { NextResponse } from "next/server";
 
@@ -87,25 +88,29 @@ export async function POST(request: Request) {
     }
 
     const hashedPassword = await hash(password, 12);
+    console.log("Register attempt for:", body.email);
 
-    try {
-      await prisma.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          name,
-          birthDate,
-        },
-      });
-    } catch (error) {
-      return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Failed to create user" },
-        { status: 500 },
-      );
-    }
+    await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name,
+        birthDate: new Date(birthDate),
+      },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { success: false, error: "email_exists" },
+        { status: 409 },
+      );
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to register user" },
       { status: 500 },
