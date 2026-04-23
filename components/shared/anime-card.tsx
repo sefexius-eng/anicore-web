@@ -28,18 +28,24 @@ export function AnimeCard({
   posterOverlay,
 }: AnimeCardProps) {
   const formattedScore = score !== null ? score.toFixed(2) : "N/A";
-  const getValidImageUrl = (imageObj?: AnimeImage | null) => {
-    const url = imageObj?.original || imageObj?.preview || imageObj?.x160;
-
-    if (!url) {
-      return "https://placehold.co/400x600/1a1a1a/ffffff?text=No+Image";
+  const fallbackImageUrl =
+    "https://placehold.co/225x320/1a1a1a/ffffff?text=No+Image";
+  const getImageUrl = (img?: AnimeImage | string | null) => {
+    if (!img) {
+      return fallbackImageUrl;
     }
 
-    if (url.startsWith("http")) {
-      return url;
+    const path = typeof img === "string" ? img : img.original || img.preview;
+
+    if (!path) {
+      return fallbackImageUrl;
     }
 
-    return `https://desu.shikimori.one${url}`;
+    if (path.startsWith("http")) {
+      return path;
+    }
+
+    return `https://shikimori.one${path}`;
   };
 
   return (
@@ -47,12 +53,13 @@ export function AnimeCard({
       <Card className="cursor-pointer overflow-hidden border-border/70 bg-card/80 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:shadow-xl hover:ring-2 hover:ring-primary">
         <div className="relative aspect-[2/3] w-full overflow-hidden">
           <img
-            src={getValidImageUrl(
-              image ?? (image_url ? { original: image_url } : null),
-            )}
-            alt={title}
+            src={getImageUrl(image ?? image_url ?? null)}
+            alt={title || "Anime Poster"}
             className="w-full h-full object-cover"
             loading="lazy"
+            onError={(event) => {
+              event.currentTarget.src = fallbackImageUrl;
+            }}
           />
 
           {posterOverlay ? (

@@ -104,9 +104,6 @@ export default function Home() {
           <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             Популярное сейчас
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Данные загружаются в браузере из Shikimori API.
-          </p>
         </div>
 
         {isLoading ? (

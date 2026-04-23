@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
@@ -84,8 +85,21 @@ export default function RegisterPage() {
         return;
       }
 
-      router.push("/login?callbackUrl=/");
-      router.refresh();
+      const email = payload.email.trim().toLowerCase();
+      const password = payload.password;
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (res?.ok) {
+        router.push("/");
+        router.refresh();
+        return;
+      }
+
+      setErrorMessage(REGISTER_ERROR_MESSAGES.unknown);
     } catch {
       setErrorMessage(REGISTER_ERROR_MESSAGES.unknown);
     } finally {
