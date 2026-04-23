@@ -140,25 +140,13 @@ export default async function RegisterPage({
 
               <div className="space-y-4">
                 <h1 className="max-w-md text-3xl font-semibold leading-tight text-white sm:text-4xl">
-                  Создайте аккаунт и откройте персональные функции AniCore
+                  Регистрация в AniCore
                 </h1>
 
                 <p className="max-w-md text-sm leading-7 text-slate-300 sm:text-base">
-                  Регистрация сохраняет дату рождения в сессии, чтобы age-filter
-                  применялся глобально без лишних обращений к базе данных.
+                  Создайте аккаунт, чтобы сохранять историю просмотров и
+                  фильтровать контент.
                 </p>
-              </div>
-
-              <div className="grid gap-3 text-sm text-slate-200">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  Безопасный вход через NextAuth CredentialsProvider
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  Пароль сохраняется только в виде bcrypt-хеша
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  Возрастной фильтр 18+ применяется автоматически
-                </div>
               </div>
             </div>
           </div>

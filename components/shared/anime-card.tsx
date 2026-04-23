@@ -12,18 +12,26 @@ interface AnimeCardProps {
   posterOverlay?: ReactNode;
 }
 
-const getImageUrl = (url?: string | null) =>
-  url?.startsWith("/") ? `https://shikimori.one${url}` : url || "/placeholder.jpg";
-
 export function AnimeCard({ id, title, image_url, score, posterOverlay }: AnimeCardProps) {
   const formattedScore = score !== null ? score.toFixed(2) : "N/A";
+  const getValidImageUrl = (url?: string | null) => {
+    if (!url) {
+      return "https://via.placeholder.com/225x320/1f2937/ffffff?text=No+Poster";
+    }
+
+    if (url.startsWith("http")) {
+      return url;
+    }
+
+    return `https://shikimori.one${url}`;
+  };
 
   return (
     <Link href={`/anime/${id}`} className="block">
       <Card className="cursor-pointer overflow-hidden border-border/70 bg-card/80 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:shadow-xl hover:ring-2 hover:ring-primary">
         <div className="relative aspect-[2/3] w-full overflow-hidden">
           <img
-            src={getImageUrl(image_url)}
+            src={getValidImageUrl(image_url)}
             alt={title}
             className="w-full h-full object-cover"
             loading="lazy"
