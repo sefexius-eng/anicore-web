@@ -23,6 +23,10 @@ export function getImageUrl(url?: string | null) {
     return `https:${normalizedUrl}`
   }
 
+  if (normalizedUrl.startsWith("/system/")) {
+    return `${SHIKIMORI_BASE_URL}${normalizedUrl}`
+  }
+
   if (normalizedUrl.startsWith("/")) {
     return `${SHIKIMORI_BASE_URL}${normalizedUrl}`
   }
