@@ -8,7 +8,7 @@ function isMissingImageUrl(url: string) {
   return url.toLowerCase().includes("missing")
 }
 
-export function getImageUrl(url?: string | null) {
+export function getImageUrl(url: string | null | undefined): string {
   if (typeof url !== "string") {
     return IMAGE_PLACEHOLDER_URL
   }
@@ -19,19 +19,19 @@ export function getImageUrl(url?: string | null) {
     return IMAGE_PLACEHOLDER_URL
   }
 
-  if (normalizedUrl.startsWith("//")) {
-    return `https:${normalizedUrl}`
+  if (normalizedUrl.startsWith("http")) {
+    return normalizedUrl
   }
 
-  if (normalizedUrl.startsWith("/system/")) {
-    return `${SHIKIMORI_BASE_URL}${normalizedUrl}`
+  if (normalizedUrl.startsWith("//")) {
+    return `https:${normalizedUrl}`
   }
 
   if (normalizedUrl.startsWith("/")) {
     return `${SHIKIMORI_BASE_URL}${normalizedUrl}`
   }
 
-  return normalizedUrl
+  return `${SHIKIMORI_BASE_URL}/${normalizedUrl.replace(/^\/+/, "")}`
 }
 
 export function cn(...inputs: ClassValue[]) {

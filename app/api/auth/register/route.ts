@@ -110,8 +110,11 @@ export async function POST(request: Request) {
       );
     }
 
+    const message =
+      error instanceof Error ? error.message : "Failed to register user";
+
     return NextResponse.json(
-      { success: false, error: "unknown" },
+      { error: message || "Failed to register user" },
       { status: 500 },
     );
   }

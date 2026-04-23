@@ -25,7 +25,7 @@ function getErrorMessage(errorCode: string | null | undefined) {
   return (
     REGISTER_ERROR_MESSAGES[
       errorCode as keyof typeof REGISTER_ERROR_MESSAGES
-    ] ?? REGISTER_ERROR_MESSAGES.unknown
+    ] ?? errorCode
   );
 }
 
@@ -78,9 +78,8 @@ export default function RegisterPage() {
       };
 
       if (!response.ok || !data.success) {
-        setErrorMessage(
-          getErrorMessage(data.error) ?? REGISTER_ERROR_MESSAGES.unknown,
-        );
+        console.error("Registration failed:", data.error ?? response.status);
+        setErrorMessage(getErrorMessage(data.error) ?? REGISTER_ERROR_MESSAGES.unknown);
         return;
       }
 
