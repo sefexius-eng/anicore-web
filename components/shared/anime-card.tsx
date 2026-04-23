@@ -1,9 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
 import type { ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getImageUrl } from "@/lib/utils";
 
 interface AnimeCardProps {
   id: number;
@@ -13,21 +12,21 @@ interface AnimeCardProps {
   posterOverlay?: ReactNode;
 }
 
+const getImageUrl = (url?: string | null) =>
+  url?.startsWith("/") ? `https://shikimori.one${url}` : url || "/placeholder.jpg";
+
 export function AnimeCard({ id, title, image_url, score, posterOverlay }: AnimeCardProps) {
   const formattedScore = score !== null ? score.toFixed(2) : "N/A";
-  const posterUrl = getImageUrl(image_url);
 
   return (
     <Link href={`/anime/${id}`} className="block">
-      <Card className="overflow-hidden border-border/70 bg-card/80 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:scale-105 hover:ring-2 hover:ring-primary cursor-pointer">
+      <Card className="cursor-pointer overflow-hidden border-border/70 bg-card/80 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:shadow-xl hover:ring-2 hover:ring-primary">
         <div className="relative aspect-[2/3] w-full overflow-hidden">
-          <Image
-            src={posterUrl}
+          <img
+            src={getImageUrl(image_url)}
             alt={title}
-            fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-            className="object-cover transition-transform duration-500 hover:scale-105"
-            priority={false}
+            className="w-full h-full object-cover"
+            loading="lazy"
           />
 
           {posterOverlay ? (

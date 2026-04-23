@@ -99,14 +99,18 @@ async function registerUser(formData: FormData) {
 
   const hashedPassword = await hash(password, 12);
 
-  await prisma.user.create({
-    data: {
-      email,
-      name,
-      password: hashedPassword,
-      birthDate,
-    },
-  });
+  try {
+    await prisma.user.create({
+      data: {
+        email,
+        name,
+        password: hashedPassword,
+        birthDate,
+      },
+    });
+  } catch {
+    redirect("/register?error=unknown");
+  }
 
   redirect("/login?callbackUrl=/");
 }

@@ -67,7 +67,7 @@ export function LoginForm({ callbackUrl, queryError }: LoginFormProps) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-900 px-4 py-12 sm:px-6 lg:px-8">
       <section className="grid w-full max-w-5xl overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-2xl shadow-black/40 backdrop-blur-2xl lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="flex flex-col justify-between border-b border-white/10 bg-slate-950/70 p-8 sm:p-10 lg:border-b-0 lg:border-r">
+        <div className="flex flex-col justify-center border-b border-white/10 bg-slate-950/70 p-8 sm:p-10 lg:border-b-0 lg:border-r">
           <div className="space-y-6">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-sky-300">
               AniCore Account
@@ -75,31 +75,16 @@ export function LoginForm({ callbackUrl, queryError }: LoginFormProps) {
 
             <div className="space-y-4">
               <h1 className="max-w-md text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                Вход в AniCore без дефолтного UI и лишнего шума
+                Добро пожаловать в AniCore
               </h1>
 
               <p className="max-w-lg text-sm leading-7 text-slate-300 sm:text-base">
-                Войдите в аккаунт, чтобы сохранить историю просмотра, управлять
-                доступом к возрастному контенту и продолжать смотреть с того
-                места, где остановились.
+                Войдите в свой аккаунт, чтобы сохранять историю просмотров и
+                получать персональные рекомендации.
               </p>
             </div>
           </div>
 
-          <div className="mt-10 space-y-4">
-            {[
-              "Персональная история и быстрый возврат к просмотру",
-              "Единый возрастной фильтр для всего каталога",
-              "Надежный вход через NextAuth CredentialsProvider",
-            ].map((item) => (
-              <div
-                key={item}
-                className="border-t border-white/10 py-4 text-sm text-slate-200 first:border-t-0 first:pt-0"
-              >
-                {item}
-              </div>
-            ))}
-          </div>
         </div>
 
         <div className="p-8 sm:p-10">
