@@ -24,17 +24,12 @@ import { cn, getImageUrl } from "@/lib/utils";
 const SEARCH_DEBOUNCE_MS = 350;
 const SEARCH_RESULTS_LIMIT = 6;
 const SEARCH_DROPDOWN_ID = "navbar-search-results";
-const SEARCH_ENDPOINT = "/api/search";
 
 interface AnimeShowcaseItem {
   id: number;
   title: string;
   image_url: string;
   score: number | null;
-}
-
-interface SearchApiResponse {
-  results?: AnimeShowcaseItem[];
 }
 
 export function NavbarSearch() {
@@ -87,25 +82,19 @@ export function NavbarSearch() {
     setIsDropdownOpen(true);
     setActiveIndex(-1);
 
-    const searchParams = new URLSearchParams({
-      q: debouncedQuery,
-      limit: String(SEARCH_RESULTS_LIMIT),
-    });
+    async function loadSearchResults() {
+      const { searchAnime } = await import("@/services/jikanApi");
 
-    void fetch(`${SEARCH_ENDPOINT}?${searchParams.toString()}`, {
-      method: "GET",
-      signal: controller.signal,
-      cache: "no-store",
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`Search API request failed: ${response.status}`);
-        }
+      if (controller.signal.aborted) {
+        return [];
+      }
 
-        const payload = (await response.json()) as SearchApiResponse;
+      return searchAnime(debouncedQuery, SEARCH_RESULTS_LIMIT, {
+        signal: controller.signal,
+      });
+    }
 
-        return Array.isArray(payload.results) ? payload.results : [];
-      })
+    void loadSearchResults()
       .then((items) => {
         if (controller.signal.aborted) {
           return;

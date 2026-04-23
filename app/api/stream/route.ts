@@ -1,11 +1,6 @@
 import { ANIME } from "@consumet/extensions";
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  AdultContentBlockedError,
-  assertAnimeAccessAllowedById,
-} from "@/services/jikanApi";
-
 export const dynamic = "force-dynamic";
 
 const JIKAN_ANIME_ENDPOINT = "https://api.jikan.moe/v4/anime";
@@ -147,8 +142,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    await assertAnimeAccessAllowedById(malId);
-
     const jikanPayload = await fetchJson<JikanAnimeResponse>(
       `${JIKAN_ANIME_ENDPOINT}/${malId}`,
     );
@@ -219,17 +212,6 @@ export async function GET(request: NextRequest) {
       headers: streamHeaders,
     });
   } catch (error) {
-    if (error instanceof AdultContentBlockedError) {
-      return NextResponse.json(
-        {
-          error: "Adult content is restricted for the current viewer.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
-
     const message = error instanceof Error ? error.message : "Unknown parser error";
     console.error("[stream] failed to resolve stream", {
       malId: malIdParam,

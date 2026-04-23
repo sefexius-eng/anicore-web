@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  AdultContentBlockedError,
-  assertAnimeAccessAllowedById,
-} from "@/services/jikanApi";
-
 type TranslationType = "voice" | "subtitles";
 
 interface KodikSearchTranslation {
@@ -155,8 +150,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    await assertAnimeAccessAllowedById(numericMalId);
-
     const token = process.env.KODIK_TOKEN || "56a768d08f43091901c44b54fe970049";
 
     const response = await fetch(
@@ -254,17 +247,6 @@ export async function GET(request: NextRequest) {
       translations: Array.from(translationsMap.values()),
     });
   } catch (error) {
-    if (error instanceof AdultContentBlockedError) {
-      return NextResponse.json(
-        {
-          error: "Adult content is restricted for the current viewer.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
-
     const message =
       error instanceof Error ? error.message : "Failed to fetch data from Kodik API.";
     console.error("[kodik] failed to fetch player data", {

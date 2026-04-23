@@ -1,5 +1,5 @@
-import "server-only";
-import { getViewerAccess } from "@/lib/auth";
+"use client";
+
 import { getPosterUrl, pickPosterUrl } from "@/lib/poster";
 
 export interface AnimeShowcaseItem {
@@ -56,7 +56,8 @@ interface ShikimoriAnimeResponse {
   };
 }
 
-const SHIKIMORI_API_BASE_URL = "https://shikimori.one/api";
+const SHIKIMORI_API_ORIGIN = "https://shikimori.one";
+const SHIKIMORI_API_PATH = "/api";
 const FALLBACK_POSTER = getPosterUrl("/assets/globals/missing_original.jpg");
 const RESTRICTED_GENRE_NAMES = new Set([
   "ecchi",
@@ -70,6 +71,22 @@ export class AdultContentBlockedError extends Error {
     super(message);
     this.name = "AdultContentBlockedError";
   }
+}
+
+interface ShikimoriFetchOptions {
+  signal?: AbortSignal;
+}
+
+function getShikimoriApiBaseUrl(): string {
+  return `${SHIKIMORI_API_ORIGIN}${SHIKIMORI_API_PATH}`;
+}
+
+function getBrowserFetch(): typeof window.fetch {
+  if (typeof window === "undefined") {
+    throw new Error("Shikimori API requests must run in the browser.");
+  }
+
+  return window.fetch.bind(window);
 }
 
 function resolveImageUrl(path: string | null | undefined): string | null {
@@ -168,25 +185,22 @@ function hasRestrictedGenres(
   });
 }
 
-async function assertAnimeAudienceAccess(
+function assertAnimeAudienceAccess(
   payload: Pick<ShikimoriAnimeResponse, "genres">,
 ) {
-  const viewerAccess = await getViewerAccess();
-
-  if (viewerAccess.shouldFilterAdultContent && hasRestrictedGenres(payload)) {
+  if (hasRestrictedGenres(payload)) {
     throw new AdultContentBlockedError();
   }
 }
 
-async function shouldFilterAdultContent() {
-  const viewerAccess = await getViewerAccess();
-  return viewerAccess.shouldFilterAdultContent;
-}
-
-async function fetchAnimePayload(id: number): Promise<ShikimoriAnimeResponse> {
-  const response = await fetch(`${SHIKIMORI_API_BASE_URL}/animes/${id}`, {
+async function fetchAnimePayload(
+  id: number,
+  options: ShikimoriFetchOptions = {},
+): Promise<ShikimoriAnimeResponse> {
+  const response = await getBrowserFetch()(`${getShikimoriApiBaseUrl()}/animes/${id}`, {
     method: "GET",
     cache: "no-store",
+    signal: options.signal,
     headers: {
       Accept: "application/json",
     },
@@ -208,18 +222,22 @@ function toAnimeShowcaseItem(payload: ShikimoriAnimeResponse): AnimeShowcaseItem
   };
 }
 
-export async function getAnimeById(id: number): Promise<AnimeShowcaseItem> {
-  const payload = await fetchAnimePayload(id);
-  await assertAnimeAudienceAccess(payload);
+export async function getAnimeById(
+  id: number,
+  options: ShikimoriFetchOptions = {},
+): Promise<AnimeShowcaseItem> {
+  const payload = await fetchAnimePayload(id, options);
+  assertAnimeAudienceAccess(payload);
 
   return toAnimeShowcaseItem(payload);
 }
 
 export async function getAnimeDetailsById(
   id: number,
+  options: ShikimoriFetchOptions = {},
 ): Promise<AnimeDetailsItem> {
-  const payload = await fetchAnimePayload(id);
-  await assertAnimeAudienceAccess(payload);
+  const payload = await fetchAnimePayload(id, options);
+  assertAnimeAudienceAccess(payload);
 
   return {
     ...toAnimeShowcaseItem(payload),
@@ -231,6 +249,7 @@ export async function getAnimeDetailsById(
 export async function searchAnime(
   query: string,
   limit = 20,
+  options: ShikimoriFetchOptions = {},
 ): Promise<AnimeShowcaseItem[]> {
   const searchQuery = query.trim();
 
@@ -241,18 +260,15 @@ export async function searchAnime(
   const searchParams = new URLSearchParams({
     search: searchQuery,
     limit: String(limit),
+    censored: "true",
   });
-  const filterAdultContent = await shouldFilterAdultContent();
 
-  if (filterAdultContent) {
-    searchParams.set("censored", "true");
-  }
-
-  const response = await fetch(
-    `${SHIKIMORI_API_BASE_URL}/animes?${searchParams.toString()}`,
+  const response = await getBrowserFetch()(
+    `${getShikimoriApiBaseUrl()}/animes?${searchParams.toString()}`,
     {
       method: "GET",
       cache: "no-store",
+      signal: options.signal,
       headers: {
         Accept: "application/json",
       },
@@ -269,16 +285,9 @@ export async function searchAnime(
     return [];
   }
 
-  const visiblePayload = filterAdultContent
-    ? payload.filter((anime) => !hasRestrictedGenres(anime))
-    : payload;
+  const visiblePayload = payload.filter((anime) => !hasRestrictedGenres(anime));
 
   return visiblePayload.map(toAnimeShowcaseItem);
-}
-
-export async function assertAnimeAccessAllowedById(id: number) {
-  const payload = await fetchAnimePayload(id);
-  await assertAnimeAudienceAccess(payload);
 }
 
 function isTvKind(kind: string | null | undefined): boolean {
@@ -297,14 +306,14 @@ function isTvKind(kind: string | null | undefined): boolean {
 
 export async function getAnimeFranchiseSeasons(
   id: number,
+  options: ShikimoriFetchOptions = {},
 ): Promise<AnimeFranchiseSeasonItem[]> {
-  const response = await fetch(`${SHIKIMORI_API_BASE_URL}/animes/${id}/franchise`, {
+  const response = await getBrowserFetch()(`${getShikimoriApiBaseUrl()}/animes/${id}/franchise`, {
     method: "GET",
+    cache: "no-store",
+    signal: options.signal,
     headers: {
       Accept: "application/json",
-    },
-    next: {
-      revalidate: 60 * 60,
     },
   });
 
