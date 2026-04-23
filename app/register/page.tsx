@@ -108,7 +108,7 @@ async function registerUser(formData: FormData) {
     },
   });
 
-  redirect("/api/auth/signin?callbackUrl=/");
+  redirect("/login?callbackUrl=/");
 }
 
 interface RegisterPageProps {
@@ -166,8 +166,8 @@ export default async function RegisterPage({
                   Регистрация
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  После создания аккаунта вы попадете на стандартную форму входа
-                  NextAuth.
+                  После создания аккаунта вы сможете сразу войти через нашу
+                  кастомную страницу авторизации.
                 </p>
               </div>
 
@@ -258,7 +258,7 @@ export default async function RegisterPage({
               <p className="text-sm text-muted-foreground">
                 Уже есть аккаунт?{" "}
                 <Link
-                  href="/api/auth/signin"
+                  href="/login"
                   className="font-medium text-foreground underline underline-offset-4"
                 >
                   Войти
