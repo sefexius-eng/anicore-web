@@ -1,5 +1,5 @@
+/* eslint-disable @next/next/no-img-element */
 import type { ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,13 +21,11 @@ export function AnimeCard({ id, title, image_url, score, posterOverlay }: AnimeC
     <Link href={`/anime/${id}`} className="block">
       <Card className="overflow-hidden border-border/70 bg-card/80 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:scale-105 hover:ring-2 hover:ring-primary cursor-pointer">
         <div className="relative aspect-[2/3] w-full overflow-hidden">
-          <Image
+          <img
             src={posterUrl}
             alt={title}
-            fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-            className="object-cover transition-transform duration-500 hover:scale-105"
-            priority={false}
+            className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+            loading="lazy"
           />
 
           {posterOverlay ? (

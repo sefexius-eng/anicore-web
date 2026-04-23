@@ -15,7 +15,7 @@ export async function NavbarShell() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/75 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6 lg:px-8">
         <Link
           href="/"
           className="order-1 shrink-0 text-xl font-semibold tracking-tight text-foreground transition-opacity hover:opacity-85"
@@ -25,7 +25,7 @@ export async function NavbarShell() {
 
         <NavbarSearch />
 
-        <div className="order-2 ml-auto flex items-center gap-2 sm:order-3 sm:ml-0">
+        <div className="order-2 ml-auto flex items-center gap-4 sm:order-3">
           <Link
             href="/history"
             className={cn(
@@ -47,7 +47,7 @@ export async function NavbarShell() {
             </div>
           ) : (
             <Link
-              href="/api/auth/signin?callbackUrl=/"
+              href="/login?callbackUrl=/"
               className={cn(
                 buttonVariants({ variant: "default" }),
                 "h-10 gap-2 px-3",

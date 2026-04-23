@@ -1,10 +1,11 @@
-import { hash } from "bcryptjs";
+"use client";
+
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { prisma } from "@/lib/prisma";
 
 const REGISTER_ERROR_MESSAGES = {
   invalid_email: "Укажите корректный email.",
@@ -16,7 +17,7 @@ const REGISTER_ERROR_MESSAGES = {
   unknown: "Не удалось создать аккаунт. Попробуйте еще раз.",
 } as const;
 
-function getErrorMessage(errorCode: string | undefined) {
+function getErrorMessage(errorCode: string | null | undefined) {
   if (!errorCode) {
     return null;
   }
@@ -28,98 +29,69 @@ function getErrorMessage(errorCode: string | undefined) {
   );
 }
 
-function parseBirthDateInput(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return null;
+export default function RegisterPage() {
+  const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  const today = new Date();
+
+  today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+  const maxBirthDate = today.toISOString().slice(0, 10);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErrorMessage(null);
+    setIsPending(true);
+
+    const formData = new FormData(event.currentTarget);
+    const payload = {
+      email:
+        typeof formData.get("email") === "string"
+          ? String(formData.get("email")).trim()
+          : "",
+      name:
+        typeof formData.get("name") === "string"
+          ? String(formData.get("name")).trim()
+          : "",
+      password:
+        typeof formData.get("password") === "string"
+          ? String(formData.get("password"))
+          : "",
+      birthDate:
+        typeof formData.get("birthDate") === "string"
+          ? String(formData.get("birthDate")).trim()
+          : "",
+    };
+
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+      };
+
+      if (!response.ok || !data.success) {
+        setErrorMessage(
+          getErrorMessage(data.error) ?? REGISTER_ERROR_MESSAGES.unknown,
+        );
+        return;
+      }
+
+      router.push("/login?callbackUrl=/");
+      router.refresh();
+    } catch {
+      setErrorMessage(REGISTER_ERROR_MESSAGES.unknown);
+    } finally {
+      setIsPending(false);
+    }
   }
-
-  const parsedDate = new Date(`${value}T00:00:00.000Z`);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return null;
-  }
-
-  return parsedDate;
-}
-
-async function registerUser(formData: FormData) {
-  "use server";
-
-  const email =
-    typeof formData.get("email") === "string"
-      ? String(formData.get("email")).trim().toLowerCase()
-      : "";
-  const name =
-    typeof formData.get("name") === "string"
-      ? String(formData.get("name")).trim()
-      : "";
-  const password =
-    typeof formData.get("password") === "string"
-      ? String(formData.get("password"))
-      : "";
-  const birthDateInput =
-    typeof formData.get("birthDate") === "string"
-      ? String(formData.get("birthDate")).trim()
-      : "";
-
-  if (!email || !email.includes("@")) {
-    redirect("/register?error=invalid_email");
-  }
-
-  if (name.length < 2) {
-    redirect("/register?error=invalid_name");
-  }
-
-  if (password.length < 8) {
-    redirect("/register?error=invalid_password");
-  }
-
-  const birthDate = parseBirthDateInput(birthDateInput);
-
-  if (!birthDate) {
-    redirect("/register?error=invalid_birth_date");
-  }
-
-  if (birthDate.getTime() > Date.now()) {
-    redirect("/register?error=future_birth_date");
-  }
-
-  const existingUser = await prisma.user.findUnique({
-    where: {
-      email,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (existingUser) {
-    redirect("/register?error=email_exists");
-  }
-
-  const hashedPassword = await hash(password, 12);
-
-  await prisma.user.create({
-    data: {
-      email,
-      name,
-      password: hashedPassword,
-      birthDate,
-    },
-  });
-
-  redirect("/login?callbackUrl=/");
-}
-
-interface RegisterPageProps {
-  searchParams: Promise<{ error?: string }>;
-}
-
-export default async function RegisterPage({
-  searchParams,
-}: RegisterPageProps) {
-  const { error } = await searchParams;
-  const errorMessage = getErrorMessage(error);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl items-center px-4 py-12 sm:px-6 lg:px-8">
@@ -136,24 +108,25 @@ export default async function RegisterPage({
 
               <div className="space-y-4">
                 <h1 className="max-w-md text-3xl font-semibold leading-tight text-white sm:text-4xl">
-                  Создайте аккаунт и откройте персональные функции AniCore
+                  Создайте аккаунт и откройте персональные возможности AniCore
                 </h1>
 
                 <p className="max-w-md text-sm leading-7 text-slate-300 sm:text-base">
-                  Регистрация сохраняет дату рождения в сессии, чтобы age-filter
-                  применялся глобально без лишних обращений к базе данных.
+                  Регистрация позволит сохранять историю просмотров,
+                  возвращаться к любимым тайтлам и получать более точные
+                  рекомендации.
                 </p>
               </div>
 
               <div className="grid gap-3 text-sm text-slate-200">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  Безопасный вход через NextAuth CredentialsProvider
+                  История просмотров будет доступна в вашем аккаунте
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  Пароль сохраняется только в виде bcrypt-хеша
+                  Любимые тайтлы и персональные подборки всегда под рукой
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  Возрастной фильтр 18+ применяется автоматически
+                  Возрастные ограничения применяются автоматически
                 </div>
               </div>
             </div>
@@ -166,8 +139,8 @@ export default async function RegisterPage({
                   Регистрация
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  После создания аккаунта вы сможете сразу войти через нашу
-                  кастомную страницу авторизации.
+                  Заполните форму, чтобы создать аккаунт и сразу перейти ко
+                  входу.
                 </p>
               </div>
 
@@ -177,7 +150,7 @@ export default async function RegisterPage({
                 </div>
               )}
 
-              <form action={registerUser} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
                   <label
                     htmlFor="email"
@@ -245,13 +218,14 @@ export default async function RegisterPage({
                     id="birthDate"
                     name="birthDate"
                     type="date"
+                    max={maxBirthDate}
                     required
                     className="h-11"
                   />
                 </div>
 
-                <Button type="submit" className="h-11 w-full">
-                  Создать аккаунт
+                <Button type="submit" disabled={isPending} className="h-11 w-full">
+                  {isPending ? "Создаем аккаунт..." : "Создать аккаунт"}
                 </Button>
               </form>
 

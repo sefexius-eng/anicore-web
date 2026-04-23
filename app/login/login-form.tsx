@@ -75,22 +75,21 @@ export function LoginForm({ callbackUrl, queryError }: LoginFormProps) {
 
             <div className="space-y-4">
               <h1 className="max-w-md text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                Вход в AniCore без дефолтного UI и лишнего шума
+                Добро пожаловать в AniCore
               </h1>
 
               <p className="max-w-lg text-sm leading-7 text-slate-300 sm:text-base">
-                Войдите в аккаунт, чтобы сохранить историю просмотра, управлять
-                доступом к возрастному контенту и продолжать смотреть с того
-                места, где остановились.
+                Войдите в свой аккаунт, чтобы сохранять историю просмотров,
+                добавлять аниме в избранное и получать персональные
+                рекомендации.
               </p>
             </div>
           </div>
 
           <div className="mt-10 space-y-4">
             {[
-              "Персональная история и быстрый возврат к просмотру",
-              "Единый возрастной фильтр для всего каталога",
-              "Надежный вход через NextAuth CredentialsProvider",
+              "История просмотров всегда остается под рукой",
+              "Избранное и персональные рекомендации доступны в вашем аккаунте",
             ].map((item) => (
               <div
                 key={item}
