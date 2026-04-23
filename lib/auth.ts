@@ -77,6 +77,7 @@ export const authOptions: NextAuthOptions = {
           id: String(user.id),
           email: user.email,
           name: user.name,
+          image: user.image,
           birthDate: user.birthDate.toISOString(),
         };
       },
@@ -86,6 +87,9 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.sub = user.id;
+        token.name = user.name ?? token.name;
+        token.email = user.email ?? token.email;
+        token.image = user.image ?? null;
         token.birthDate =
           "birthDate" in user ? normalizeBirthDate(user.birthDate) : null;
       }
@@ -95,6 +99,34 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.sub ?? "";
+
+        const sessionUserId = Number(token.sub);
+
+        if (Number.isInteger(sessionUserId) && sessionUserId > 0) {
+          const user = await prisma.user.findUnique({
+            where: {
+              id: sessionUserId,
+            },
+            select: {
+              name: true,
+              email: true,
+              image: true,
+              birthDate: true,
+            },
+          });
+
+          if (user) {
+            session.user.name = user.name;
+            session.user.email = user.email;
+            session.user.image = user.image;
+            session.user.birthDate = user.birthDate.toISOString();
+
+            return session;
+          }
+        }
+
+        session.user.image =
+          typeof token.image === "string" ? token.image : session.user.image ?? null;
         session.user.birthDate =
           typeof token.birthDate === "string" ? token.birthDate : null;
       }

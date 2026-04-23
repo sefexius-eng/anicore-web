@@ -1,83 +1,132 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
 import { AnimeCard } from "@/components/shared/anime-card";
+import { HomePopularContent } from "@/components/shared/home-popular-content";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
-const FEATURED_MAL_IDS = [61316, 51553, 59708, 56876, 62001] as const;
+interface JikanRecommendationEntry {
+  entry?: {
+    mal_id?: number;
+    title?: string;
+    images?: {
+      jpg?: {
+        image_url?: string | null;
+        large_image_url?: string | null;
+      };
+      webp?: {
+        image_url?: string | null;
+        large_image_url?: string | null;
+      };
+    };
+  };
+}
 
-interface AnimeShowcaseItem {
+interface JikanRecommendationsResponse {
+  data?: JikanRecommendationEntry[];
+}
+
+interface RecommendedAnime {
   id: number;
   title: string;
   image: {
     original?: string | null;
     preview?: string | null;
-    x160?: string | null;
   } | null;
   image_url: string;
   score: number | null;
 }
 
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
+const RECOMMENDATION_FALLBACK_IMAGE =
+  "https://placehold.co/225x320/1a1a1a/ffffff?text=No+Image";
+
+function resolveRecommendationImage(
+  recommendation: JikanRecommendationEntry,
+): string {
+  return (
+    recommendation.entry?.images?.jpg?.large_image_url ||
+    recommendation.entry?.images?.jpg?.image_url ||
+    recommendation.entry?.images?.webp?.large_image_url ||
+    recommendation.entry?.images?.webp?.image_url ||
+    RECOMMENDATION_FALLBACK_IMAGE
+  );
 }
 
-export default function Home() {
-  const [showcaseAnime, setShowcaseAnime] = useState<AnimeShowcaseItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasLoadError, setHasLoadError] = useState(false);
+async function getRecommendedAnime(userId: number): Promise<RecommendedAnime[]> {
+  const latestHistoryItem = await prisma.watchHistory.findFirst({
+    where: {
+      userId,
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+    select: {
+      animeId: true,
+    },
+  });
 
-  useEffect(() => {
-    const controller = new AbortController();
+  if (!latestHistoryItem) {
+    return [];
+  }
 
-    async function loadShowcaseAnime() {
-      setIsLoading(true);
-      setHasLoadError(false);
+  try {
+    const response = await fetch(
+      `https://api.jikan.moe/v4/anime/${latestHistoryItem.animeId}/recommendations`,
+      {
+        cache: "no-store",
+      },
+    );
 
-      const { getAnimeById } = await import("@/services/jikanApi");
-
-      if (controller.signal.aborted) {
-        return;
-      }
-
-      const results = await Promise.allSettled(
-        FEATURED_MAL_IDS.map((id) =>
-          getAnimeById(id, { signal: controller.signal }),
-        ),
-      );
-
-      if (controller.signal.aborted) {
-        return;
-      }
-
-      const items = results
-        .filter(
-          (
-            result,
-          ): result is PromiseFulfilledResult<AnimeShowcaseItem> =>
-            result.status === "fulfilled",
-        )
-        .map((result) => result.value);
-
-      setShowcaseAnime(items);
-      setHasLoadError(items.length === 0);
-      setIsLoading(false);
+    if (!response.ok) {
+      return [];
     }
 
-    void loadShowcaseAnime().catch((error: unknown) => {
-      if (controller.signal.aborted || isAbortError(error)) {
-        return;
-      }
+    const payload =
+      (await response.json()) as JikanRecommendationsResponse;
 
-      setShowcaseAnime([]);
-      setHasLoadError(true);
-      setIsLoading(false);
-    });
+    if (!Array.isArray(payload.data)) {
+      return [];
+    }
 
-    return () => {
-      controller.abort();
-    };
-  }, []);
+    const recommendations = payload.data
+      .map<RecommendedAnime | null>((recommendation) => {
+        const id = recommendation.entry?.mal_id;
+        const title = recommendation.entry?.title?.trim();
+
+        if (typeof id !== "number" || !Number.isInteger(id) || !title) {
+          return null;
+        }
+
+        const imageUrl = resolveRecommendationImage(recommendation);
+
+        return {
+          id,
+          title,
+          image: {
+            original: imageUrl,
+            preview: imageUrl,
+          },
+          image_url: imageUrl,
+          score: null,
+        } satisfies RecommendedAnime;
+      })
+      .filter((recommendation): recommendation is RecommendedAnime =>
+        recommendation !== null,
+      );
+
+    return Array.from(
+      new Map(recommendations.map((recommendation) => [recommendation.id, recommendation])).values(),
+    ).slice(0, 10);
+  } catch {
+    return [];
+  }
+}
+
+export default async function HomePage() {
+  const session = await auth();
+  const sessionUserId = Number(session?.user?.id ?? Number.NaN);
+  const recommendations =
+    Number.isInteger(sessionUserId) && sessionUserId > 0
+      ? await getRecommendedAnime(sessionUserId)
+      : [];
 
   return (
     <div className="flex flex-col gap-12">
@@ -93,26 +142,28 @@ export default function Home() {
             Смотри аниме в лучшем качестве на AniCore
           </h1>
           <p className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Новинки сезона, проверенная классика и удобная навигация по
-            жанрам. Собираем для тебя самые интересные тайтлы в одном месте.
+            Новинки сезона, проверенная классика и удобная навигация по жанрам.
+            Собираем для тебя самые интересные тайтлы в одном месте.
           </p>
         </div>
       </section>
 
-      <section className="space-y-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Популярное сейчас
-          </h2>
-        </div>
+      {recommendations.length > 0 ? (
+        <section className="space-y-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                Рекомендуем вам (на основе ваших просмотров)
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Подобрали похожие тайтлы, чтобы было что включить сразу после
+                следующей серии.
+              </p>
+            </div>
+          </div>
 
-        {isLoading ? (
-          <p className="rounded-xl border border-border/70 bg-card/70 p-4 text-sm text-muted-foreground">
-            Загрузка...
-          </p>
-        ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            {showcaseAnime.map((anime) => (
+            {recommendations.map((anime) => (
               <AnimeCard
                 key={anime.id}
                 id={anime.id}
@@ -123,15 +174,10 @@ export default function Home() {
               />
             ))}
           </div>
-        )}
+        </section>
+      ) : null}
 
-        {!isLoading && hasLoadError && (
-          <p className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-            Не удалось загрузить данные с Shikimori API. Проверьте подключение к
-            интернету и попробуйте обновить страницу.
-          </p>
-        )}
-      </section>
+      <HomePopularContent />
     </div>
   );
 }

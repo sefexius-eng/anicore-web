@@ -1,17 +1,18 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import { getServerSession } from "next-auth";
 import { History, LogIn, User } from "lucide-react";
 
 import { NavbarSearch } from "@/components/shared/navbar-search";
 import { NavbarSignOutButton } from "@/components/shared/navbar-signout-button";
 import { buttonVariants } from "@/components/ui/button";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 export async function NavbarShell() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   const userLabel =
     session?.user?.name?.trim() || session?.user?.email?.trim() || "Профиль";
+  const avatarSrc = session?.user?.image?.trim() || null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/75 backdrop-blur-xl">
@@ -34,15 +35,30 @@ export async function NavbarShell() {
             )}
           >
             <History className="size-4" />
-            <span>{"\u0418\u0441\u0442\u043e\u0440\u0438\u044f"}</span>
+            <span>История</span>
           </Link>
 
           {session ? (
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-sm text-foreground">
-                <User className="size-4 text-muted-foreground" />
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-sm text-foreground transition-colors hover:border-primary/40 hover:bg-muted/70"
+              >
+                {avatarSrc ? (
+                  <img
+                    src={avatarSrc}
+                    alt={userLabel}
+                    className="size-8 rounded-full object-cover"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className="flex size-8 items-center justify-center rounded-full bg-background/80">
+                    <User className="size-4 text-muted-foreground" />
+                  </span>
+                )}
                 <span className="hidden max-w-44 truncate md:inline">{userLabel}</span>
-              </div>
+              </Link>
               <NavbarSignOutButton />
             </div>
           ) : (

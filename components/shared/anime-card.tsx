@@ -30,12 +30,13 @@ export function AnimeCard({
   const formattedScore = score !== null ? score.toFixed(2) : "N/A";
   const fallbackImageUrl =
     "https://placehold.co/225x320/1a1a1a/ffffff?text=No+Image";
-  const getImageUrl = (img?: AnimeImage | string | null) => {
+  const getValidImageUrl = (img?: AnimeImage | string | null) => {
     if (!img) {
       return fallbackImageUrl;
     }
 
-    const path = typeof img === "string" ? img : img.original || img.preview;
+    const path =
+      typeof img === "string" ? img : img.original || img.preview || img.x160;
 
     if (!path) {
       return fallbackImageUrl;
@@ -53,10 +54,11 @@ export function AnimeCard({
       <Card className="cursor-pointer overflow-hidden border-border/70 bg-card/80 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:shadow-xl hover:ring-2 hover:ring-primary">
         <div className="relative aspect-[2/3] w-full overflow-hidden">
           <img
-            src={getImageUrl(image ?? image_url ?? null)}
+            src={getValidImageUrl(image ?? image_url ?? null)}
             alt={title || "Anime Poster"}
             className="w-full h-full object-cover"
             loading="lazy"
+            referrerPolicy="no-referrer"
             onError={(event) => {
               event.currentTarget.src = fallbackImageUrl;
             }}

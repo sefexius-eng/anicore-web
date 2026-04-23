@@ -10,12 +10,14 @@ declare module "next-auth" {
 
   interface User {
     id: string;
+    image?: string | null;
     birthDate?: string | null;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
+    image?: string | null;
     birthDate?: string | null;
   }
 }

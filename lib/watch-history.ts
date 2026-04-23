@@ -20,11 +20,6 @@ export interface WatchHistoryItem {
   stoppedAt: number;
 }
 
-interface WatchHistorySaveLog {
-  id: number;
-  currentTime: number;
-}
-
 function isWatchHistoryItem(value: unknown): value is WatchHistoryItem {
   if (typeof value !== "object" || value === null) {
     return false;
@@ -85,19 +80,12 @@ function notifyWatchHistoryUpdated() {
   window.dispatchEvent(new Event(WATCH_HISTORY_UPDATED_EVENT));
 }
 
-function persistWatchHistory(
-  items: WatchHistoryItem[],
-  saveLog?: WatchHistorySaveLog,
-): WatchHistoryItem[] {
+function persistWatchHistory(items: WatchHistoryItem[]): WatchHistoryItem[] {
   if (typeof window === "undefined") {
     return items;
   }
 
   const normalizedItems = normalizeHistory(items);
-
-  if (saveLog) {
-    console.log("History saved:", saveLog);
-  }
 
   window.localStorage.setItem(
     WATCH_HISTORY_STORAGE_KEY,
@@ -106,6 +94,25 @@ function persistWatchHistory(
   notifyWatchHistoryUpdated();
 
   return normalizedItems;
+}
+
+function syncWatchHistoryOnServer(item: WatchHistoryItem) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  void fetch("/api/user/history", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "same-origin",
+    keepalive: true,
+    body: JSON.stringify({
+      animeId: item.id,
+      lastTime: item.stoppedAt,
+    }),
+  }).catch(() => undefined);
 }
 
 export function readWatchHistory(): WatchHistoryItem[] {
@@ -132,10 +139,10 @@ export function addToWatchHistory(item: WatchHistoryItem): WatchHistoryItem[] {
     ...readWatchHistory().filter((historyItem) => historyItem.id !== item.id),
   ];
 
-  return persistWatchHistory(nextItems, {
-    id: item.id,
-    currentTime: item.stoppedAt,
-  });
+  const normalizedItems = persistWatchHistory(nextItems);
+  syncWatchHistoryOnServer(item);
+
+  return normalizedItems;
 }
 
 export function removeFromHistory(id: number): WatchHistoryItem[] {
