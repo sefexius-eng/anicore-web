@@ -7,7 +7,7 @@ import { getImageUrl } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-interface ShikimoriRecommendationEntry {
+interface ShikimoriAnimeEntry {
   id?: number;
   name?: string;
   russian?: string | null;
@@ -18,6 +18,12 @@ interface ShikimoriRecommendationEntry {
     url?: string | null;
     x160?: string | null;
   } | null;
+}
+
+interface ShikimoriAnimeDetailsResponse {
+  genres?: Array<{
+    id?: number;
+  }> | null;
 }
 
 interface RecommendedAnime {
@@ -34,7 +40,7 @@ interface RecommendedAnime {
 }
 
 function resolveRecommendationScore(
-  score: ShikimoriRecommendationEntry["score"],
+  score: ShikimoriAnimeEntry["score"],
 ): number | null {
   if (typeof score === "number" && Number.isFinite(score)) {
     return score;
@@ -52,8 +58,8 @@ async function getRecommendedAnime(
   animeId: number,
 ): Promise<RecommendedAnime[]> {
   try {
-    const res = await fetch(
-      `https://shikimori.one/api/animes/${animeId}/similar`,
+    const detailsResponse = await fetch(
+      `https://shikimori.one/api/animes/${animeId}`,
       {
         cache: "no-store",
         headers: {
@@ -62,26 +68,65 @@ async function getRecommendedAnime(
       },
     );
 
-    if (!res.ok) {
+    if (!detailsResponse.ok) {
       return [];
     }
 
-    const payload = (await res.json()) as ShikimoriRecommendationEntry[];
+    const animeDetails =
+      (await detailsResponse.json()) as ShikimoriAnimeDetailsResponse;
+
+    if (!Array.isArray(animeDetails.genres)) {
+      return [];
+    }
+
+    const genreIds = animeDetails.genres
+      .map((genre) => genre.id)
+      .filter((genreId): genreId is number => typeof genreId === "number")
+      .join(",");
+
+    if (!genreIds) {
+      return [];
+    }
+
+    const searchParams = new URLSearchParams({
+      genre: genreIds,
+      order: "popularity",
+      limit: "8",
+    });
+
+    const response = await fetch(
+      `https://shikimori.one/api/animes?${searchParams.toString()}`,
+      {
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+        },
+      },
+    );
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload = (await response.json()) as ShikimoriAnimeEntry[];
 
     if (!Array.isArray(payload)) {
       return [];
     }
 
-    const data = payload.slice(0, 6);
-
     return Array.from(
       new Map(
-        data
+        payload
           .map<RecommendedAnime | null>((anime) => {
             const id = anime.id;
             const title = anime.russian?.trim() || anime.name?.trim();
 
-            if (typeof id !== "number" || !Number.isInteger(id) || !title) {
+            if (
+              typeof id !== "number" ||
+              !Number.isInteger(id) ||
+              id === animeId ||
+              !title
+            ) {
               return null;
             }
 
@@ -103,7 +148,7 @@ async function getRecommendedAnime(
           .filter((anime): anime is RecommendedAnime => anime !== null)
           .map((anime) => [anime.id, anime]),
       ).values(),
-    ).slice(0, 6);
+    );
   } catch {
     return [];
   }
@@ -138,11 +183,11 @@ export default async function HomePage() {
               Рекомендуем вам
             </h2>
             <p className="text-sm text-muted-foreground">
-              Похожие тайтлы на основе вашего последнего просмотра.
+              Подборка по жанрам вашего последнего просмотренного тайтла.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
             {recommendations.map((anime) => (
               <AnimeCard
                 key={anime.id}

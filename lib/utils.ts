@@ -30,7 +30,9 @@ export function getImageUrl(img: ImageLike) {
   }
 
   if (path.startsWith("http")) {
-    return path.replace("shikimori.me", "shikimori.one");
+    return path
+      .replace("desu.shikimori.one", "shikimori.one")
+      .replace("shikimori.me", "shikimori.one");
   }
 
   if (!path.startsWith("/")) {
