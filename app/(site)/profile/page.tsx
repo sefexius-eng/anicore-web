@@ -1,4 +1,15 @@
+/* eslint-disable @next/next/no-img-element */
 import { cache, type ReactNode } from "react";
+import {
+  Award,
+  Bookmark,
+  CalendarDays,
+  Clock3,
+  Mail,
+  Sparkles,
+  Tv2,
+  type LucideIcon,
+} from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { AnimeCard } from "@/components/shared/anime-card";
@@ -23,22 +34,22 @@ const WATCHLIST_SECTIONS: Array<{
   {
     status: "WATCHING",
     title: "Смотрю сейчас",
-    eyebrow: "Watchlist",
+    eyebrow: "Продолжить просмотр",
   },
   {
     status: "PLANNED",
     title: "В планах",
-    eyebrow: "Watchlist",
+    eyebrow: "Список ожидания",
   },
   {
     status: "COMPLETED",
     title: "Просмотрено",
-    eyebrow: "Watchlist",
+    eyebrow: "Коллекция",
   },
   {
     status: "DROPPED",
     title: "Брошено",
-    eyebrow: "Watchlist",
+    eyebrow: "Архив",
   },
 ];
 
@@ -77,6 +88,39 @@ function formatDate(value: Date): string {
   return new Intl.DateTimeFormat("ru-RU", {
     dateStyle: "long",
   }).format(value);
+}
+
+function buildAvatarFallback(userName: string): string {
+  const initials =
+    userName
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "A";
+
+  return `https://placehold.co/256x256/0f172a/e2e8f0?text=${encodeURIComponent(initials)}`;
+}
+
+function getRank(completedCount: number): string {
+  if (completedCount >= 500) {
+    return "Хикикомори";
+  }
+
+  if (completedCount >= 100) {
+    return "Отаку";
+  }
+
+  if (completedCount >= 50) {
+    return "Анимешник";
+  }
+
+  if (completedCount >= 10) {
+    return "Ученик";
+  }
+
+  return "Новичок";
 }
 
 function getBestTitle(anime: JikanAnimeEntry | undefined): string {
@@ -172,6 +216,59 @@ async function loadProfileAnimeMap(
   return animeMap;
 }
 
+function ProfileMetricCard({
+  Icon,
+  label,
+  value,
+  description,
+  toneClass,
+}: {
+  Icon: LucideIcon;
+  label: string;
+  value: string;
+  description: string;
+  toneClass: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-[#111827]/80 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.25)] backdrop-blur-sm transition-transform duration-300 hover:-translate-y-1 hover:border-sky-400/30">
+      <div
+        className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${toneClass}`}
+      >
+        <Icon className="size-5" />
+      </div>
+
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</p>
+      <p className="mt-3 text-2xl font-semibold tracking-tight text-white">{value}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
+    </div>
+  );
+}
+
+function ProfileDetailCard({
+  Icon,
+  label,
+  value,
+}: {
+  Icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#0f172a]/70 p-4 shadow-lg shadow-black/20">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sky-200">
+          <Icon className="size-4" />
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{label}</p>
+          <p className="mt-1 truncate text-sm font-medium text-slate-100">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProfileShelf({
   eyebrow,
   title,
@@ -182,32 +279,29 @@ function ProfileShelf({
   items: ProfileAnimeCardItem[];
 }) {
   return (
-    <section className="space-y-4 rounded-3xl border border-border/60 bg-card/70 p-6 shadow-2xl backdrop-blur-sm">
+    <section className="space-y-6 rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.32)] backdrop-blur-sm">
       <div className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.16em] text-sky-300">
-          {eyebrow}
-        </p>
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-          {title}
-        </h2>
+        <p className="text-xs uppercase tracking-[0.18em] text-sky-300">{eyebrow}</p>
+        <h2 className="text-2xl font-semibold tracking-tight text-white">{title}</h2>
       </div>
 
       {items.length > 0 ? (
-        <div className="flex gap-4 overflow-x-auto pb-2">
+        <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
           {items.map((item) => (
-            <div key={`${title}-${item.id}`} className="w-[168px] flex-none sm:w-[186px]">
-              <AnimeCard
-                id={item.id}
-                title={item.title}
-                image_url={item.image_url}
-                score={item.score}
-                posterOverlay={item.posterOverlay}
-              />
-            </div>
+            <AnimeCard
+              key={`${title}-${item.id}`}
+              id={item.id}
+              title={item.title}
+              image_url={item.image_url}
+              score={item.score}
+              posterOverlay={item.posterOverlay}
+            />
           ))}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">Здесь пока пусто</p>
+        <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-10 text-center text-sm text-slate-400">
+          Здесь пока пусто, но этот раздел заполнится, как только вы добавите тайтлы.
+        </div>
       )}
     </section>
   );
@@ -274,12 +368,11 @@ export default async function ProfilePage() {
   const totalMinutes = completedCount * 288;
   const days = Math.floor(totalMinutes / (24 * 60));
   const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
-
-  let rank = "Новичок";
-  if (completedCount >= 10) rank = "Ученик";
-  if (completedCount >= 50) rank = "Анимешник";
-  if (completedCount >= 100) rank = "Отаку";
-  if (completedCount >= 500) rank = "Хикикомори";
+  const timeSpentLabel =
+    days > 0 ? `${days} д. ${hours} ч.` : `${Math.max(hours, 1)} ч.`;
+  const rank = getRank(completedCount);
+  const avatarSrc = user.image?.trim() || buildAvatarFallback(user.name);
+  const savedEntriesCount = historyEntries.length + watchlistEntries.length;
 
   const groupedWatchlists = WATCHLIST_SECTIONS.map((section) => ({
     ...section,
@@ -314,120 +407,155 @@ export default async function ProfilePage() {
     ];
   });
 
+  const profileFacts = [
+    {
+      Icon: Mail,
+      label: "Email",
+      value: user.email,
+    },
+    {
+      Icon: CalendarDays,
+      label: "Дата рождения",
+      value: formatDate(user.birthDate),
+    },
+    {
+      Icon: Sparkles,
+      label: "В AniMirok с",
+      value: formatDate(user.createdAt),
+    },
+    {
+      Icon: Bookmark,
+      label: "Сохранено",
+      value: `${savedEntriesCount} записей`,
+    },
+  ];
+
+  const metrics = [
+    {
+      Icon: Award,
+      label: "Ранг",
+      value: rank,
+      description: "Повышается за завершенные тайтлы и регулярную активность.",
+      toneClass:
+        "from-amber-300/35 to-orange-500/20 text-amber-100 ring-1 ring-amber-300/30",
+    },
+    {
+      Icon: Tv2,
+      label: "Просмотрено",
+      value: `${completedCount} тайтлов`,
+      description: `${totalWatchedCount} всего в ваших списках и подборках.`,
+      toneClass:
+        "from-sky-300/35 to-cyan-500/20 text-sky-100 ring-1 ring-sky-300/30",
+    },
+    {
+      Icon: Clock3,
+      label: "Время",
+      value: timeSpentLabel,
+      description: "Оценка по завершенным сезонам с учетом общего прогресса.",
+      toneClass:
+        "from-fuchsia-300/35 to-violet-500/20 text-fuchsia-100 ring-1 ring-fuchsia-300/30",
+    },
+  ];
+
   return (
-    <div className="space-y-8">
-      <section className="space-y-4 rounded-3xl border border-border/60 bg-card/70 p-6 shadow-2xl backdrop-blur-sm">
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.16em] text-sky-300">
-            Статистика
-          </p>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-            Ваш прогресс в AniMirok
-          </h2>
+    <div className="space-y-8 pb-6">
+      <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[#090f1d] shadow-[0_35px_100px_rgba(0,0,0,0.42)]">
+        <div className="relative h-56 overflow-hidden sm:h-64">
+          <div className="absolute inset-0 bg-[linear-gradient(120deg,#0f172a_0%,#1d4ed8_42%,#7c3aed_100%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(125,211,252,0.35),transparent_32%),radial-gradient(circle_at_82%_20%,rgba(216,180,254,0.28),transparent_28%),linear-gradient(to_top,rgba(9,15,29,0.92),rgba(9,15,29,0.12))]" />
+          <div className="absolute -bottom-16 left-6 h-40 w-40 rounded-full bg-sky-400/20 blur-3xl" />
+          <div className="absolute right-10 top-8 h-24 w-24 rounded-full border border-white/15 bg-white/10 backdrop-blur-sm" />
+          <div className="absolute bottom-8 right-24 h-14 w-14 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm" />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="flex flex-col items-center justify-center rounded-xl border border-[#333] bg-[#1a1a1a] p-4 text-center shadow-lg">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-blue-700 text-xs font-semibold uppercase tracking-[0.14em] text-white">
-              Rank
+        <div className="relative px-6 pb-8 sm:px-8">
+          <div className="-mt-16 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between sm:-mt-20">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
+              <div className="relative">
+                <img
+                  src={avatarSrc}
+                  alt={user.name}
+                  className="h-32 w-32 rounded-full border-4 border-[#0f0f0f] object-cover shadow-[0_24px_50px_rgba(0,0,0,0.45)] sm:h-40 sm:w-40"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute bottom-2 right-2 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-100 backdrop-blur-sm">
+                  Channel
+                </div>
+              </div>
+
+              <div className="max-w-2xl space-y-3">
+                <p className="text-xs uppercase tracking-[0.22em] text-sky-200/90">
+                  Профиль AniMirok
+                </p>
+                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                  {user.name}
+                </h1>
+                <p className="max-w-2xl text-sm leading-6 text-slate-200 sm:text-base">
+                  Ваш личный канал в AniMirok: возвращайтесь к последним сериям,
+                  держите watchlist под рукой и отслеживайте прогресс в одном месте.
+                </p>
+
+                <div className="flex flex-wrap gap-3 text-sm text-slate-200">
+                  <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-3 py-1.5 backdrop-blur-sm">
+                    {user.email}
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-3 py-1.5 backdrop-blur-sm">
+                    С нами с {formatDate(user.createdAt)}
+                  </span>
+                </div>
+              </div>
             </div>
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-              Ранг
-            </p>
-            <p className="mt-3 text-2xl font-semibold text-white">{rank}</p>
-            <p className="mt-2 text-xs text-slate-400">
-              Повышается за завершённые тайтлы
-            </p>
+
+            <div className="rounded-3xl border border-white/10 bg-black/20 p-4 backdrop-blur-md lg:max-w-sm">
+              <p className="text-xs uppercase tracking-[0.18em] text-sky-200/90">
+                Профиль в цифрах
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-200">
+                Последние открытия, активные списки и общее время просмотра теперь
+                собраны в формате, который ощущается как премиальная страница канала.
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col items-center justify-center rounded-xl border border-[#333] bg-[#1a1a1a] p-4 text-center shadow-lg">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-cyan-600 text-lg font-semibold text-white">
-              {completedCount}
-            </div>
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-              Просмотрено
-            </p>
-            <p className="mt-3 text-2xl font-semibold text-white">
-              {completedCount} тайтлов
-            </p>
-            <p className="mt-2 text-xs text-slate-400">
-              {totalWatchedCount} всего в ваших списках
-            </p>
-          </div>
-
-          <div className="flex flex-col items-center justify-center rounded-xl border border-[#333] bg-[#1a1a1a] p-4 text-center shadow-lg">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-rose-600 text-xs font-semibold uppercase tracking-[0.14em] text-white">
-              Time
-            </div>
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-              Потрачено времени
-            </p>
-            <p className="mt-3 text-2xl font-semibold text-white">
-              {days} дн. {hours} ч.
-            </p>
-            <p className="mt-2 text-xs text-slate-400">
-              Аппроксимация по завершённым сезонам
-            </p>
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {metrics.map((metric) => (
+              <ProfileMetricCard
+                key={metric.label}
+                Icon={metric.Icon}
+                label={metric.label}
+                value={metric.value}
+                description={metric.description}
+                toneClass={metric.toneClass}
+              />
+            ))}
           </div>
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <section className="rounded-3xl border border-border/60 bg-card/70 p-6 shadow-2xl backdrop-blur-sm">
-          <div className="space-y-4">
-            <p className="text-sm uppercase tracking-[0.18em] text-sky-300">
-              Профиль
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.32)] backdrop-blur-sm">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.18em] text-sky-300">
+              Детали профиля
             </p>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-              {user.name}
-            </h1>
-            <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              Здесь собраны ваши последние просмотры и персональные списки
-              AniMirok.
+            <h2 className="text-2xl font-semibold tracking-tight text-white">
+              Все, что нужно для быстрого возвращения к просмотру
+            </h2>
+            <p className="max-w-2xl text-sm leading-6 text-slate-300">
+              Обновляйте аватар, держите важные данные рядом и используйте профиль как
+              центральную точку для истории и личных списков.
             </p>
+          </div>
 
-            <div className="grid gap-4 pt-2 sm:grid-cols-2">
-              <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  Email
-                </p>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  {user.email}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  Дата рождения
-                </p>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  {formatDate(user.birthDate)}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  В AniMirok с
-                </p>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  {formatDate(user.createdAt)}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  Сохранено
-                </p>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  {historyItems.length +
-                    groupedWatchlists.reduce(
-                      (sum, section) => sum + section.entries.length,
-                      0,
-                    )}{" "}
-                  записей
-                </p>
-              </div>
-            </div>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            {profileFacts.map((fact) => (
+              <ProfileDetailCard
+                key={fact.label}
+                Icon={fact.Icon}
+                label={fact.label}
+                value={fact.value}
+              />
+            ))}
           </div>
         </section>
 

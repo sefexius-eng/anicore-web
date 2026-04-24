@@ -12,7 +12,7 @@ import {
 } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Mic, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +30,55 @@ interface AnimeShowcaseItem {
   score: number | null;
 }
 
+interface BrowserSpeechRecognitionAlternative {
+  transcript: string;
+}
+
+interface BrowserSpeechRecognitionResult {
+  readonly isFinal: boolean;
+  readonly length: number;
+  [index: number]: BrowserSpeechRecognitionAlternative;
+}
+
+interface BrowserSpeechRecognitionResultList {
+  readonly length: number;
+  [index: number]: BrowserSpeechRecognitionResult;
+}
+
+interface BrowserSpeechRecognitionEvent extends Event {
+  readonly resultIndex: number;
+  readonly results: BrowserSpeechRecognitionResultList;
+}
+
+interface BrowserSpeechRecognitionErrorEvent extends Event {
+  readonly error: string;
+}
+
+interface BrowserSpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  maxAlternatives: number;
+  onend: ((event: Event) => void) | null;
+  onerror: ((event: BrowserSpeechRecognitionErrorEvent) => void) | null;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  onstart: ((event: Event) => void) | null;
+  abort: () => void;
+  start: () => void;
+  stop: () => void;
+}
+
+interface BrowserSpeechRecognitionConstructor {
+  new (): BrowserSpeechRecognition;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor;
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor;
+  }
+}
+
 export function NavbarSearch() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -38,10 +87,15 @@ export function NavbarSearch() {
   const [hasSearched, setHasSearched] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [isListening, setIsListening] = useState(false);
 
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
   const activeSearchControllerRef = useRef<AbortController | null>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const router = useRouter();
+  const isSpeechRecognitionSupported =
+    typeof window !== "undefined" &&
+    Boolean(window.SpeechRecognition ?? window.webkitSpeechRecognition);
 
   const closeDropdown = useCallback(() => {
     setIsDropdownOpen(false);
@@ -168,6 +222,69 @@ export function NavbarSearch() {
     [closeDropdown, router],
   );
 
+  useEffect(() => {
+    const SpeechRecognitionApi =
+      window.SpeechRecognition ?? window.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionApi) {
+      return;
+    }
+
+    const recognition = new SpeechRecognitionApi();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang =
+      document.documentElement.lang || navigator.language || "ru-RU";
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event) => {
+      let transcript = "";
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const candidate = result?.[0]?.transcript?.trim();
+
+        if (result?.isFinal && candidate) {
+          transcript = transcript ? `${transcript} ${candidate}` : candidate;
+        }
+      }
+
+      if (!transcript) {
+        return;
+      }
+
+      setQuery(transcript);
+      setDebouncedQuery(transcript);
+      navigateToSearchPage(transcript);
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      recognition.onstart = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      recognition.abort();
+
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+      }
+    };
+  }, [navigateToSearchPage]);
+
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -241,6 +358,25 @@ export function NavbarSearch() {
     }
   };
 
+  const handleMicrophoneClick = () => {
+    const recognition = recognitionRef.current;
+
+    if (!recognition) {
+      return;
+    }
+
+    if (isListening) {
+      recognition.stop();
+      return;
+    }
+
+    try {
+      recognition.start();
+    } catch {
+      setIsListening(false);
+    }
+  };
+
   return (
     <>
       <style jsx global>{`
@@ -258,7 +394,7 @@ export function NavbarSearch() {
         }
       `}</style>
 
-      <form onSubmit={handleSearch} className="mx-4 flex w-full max-w-[600px]">
+      <form onSubmit={handleSearch} className="mx-4 flex w-full max-w-[660px] gap-3">
         <div ref={searchContainerRef} className="relative flex min-w-0 flex-1">
           <input
             aria-label="Поиск аниме"
@@ -362,6 +498,30 @@ export function NavbarSearch() {
             </div>
           ) : null}
         </div>
+
+        <button
+          type="button"
+          aria-label={
+            isListening ? "Остановить голосовой поиск" : "Начать голосовой поиск"
+          }
+          aria-pressed={isListening}
+          disabled={!isSpeechRecognitionSupported}
+          title={
+            isSpeechRecognitionSupported
+              ? "Голосовой поиск"
+              : "Ваш браузер не поддерживает голосовой поиск"
+          }
+          className={cn(
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#303030] text-white transition-colors focus:outline-none",
+            isListening
+              ? "animate-pulse border-red-500 bg-red-600 hover:bg-red-500"
+              : "bg-[#1a1a1a] hover:bg-[#2b2b2b]",
+            !isSpeechRecognitionSupported && "cursor-not-allowed opacity-50",
+          )}
+          onClick={handleMicrophoneClick}
+        >
+          <Mic className="size-5" />
+        </button>
       </form>
     </>
   );
