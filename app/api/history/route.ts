@@ -68,6 +68,7 @@ export async function POST(request: Request) {
   });
 
   revalidatePath("/");
+  revalidatePath("/profile");
 
   return NextResponse.json({ success: true });
 }
@@ -110,6 +111,7 @@ export async function DELETE(request: Request) {
   }
 
   revalidatePath("/");
+  revalidatePath("/profile");
 
   return NextResponse.json({ success: true });
 }

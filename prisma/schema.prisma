@@ -18,6 +18,7 @@ model User {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   watchHistory WatchHistory[]
+  watchlists   Watchlist[]
 }
 
 model WatchHistory {
@@ -29,5 +30,18 @@ model WatchHistory {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, animeId])
+  @@index([animeId])
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    Int
+  animeId   Int
+  status    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, animeId])
   @@index([animeId])
 }
