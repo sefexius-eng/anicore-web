@@ -69,7 +69,7 @@ export function UserAvatar({ userLabel }: UserAvatarProps) {
       <img
         src={image}
         alt={userLabel}
-        className="size-8 rounded-full object-cover"
+        className="h-8 w-8 rounded-full object-cover"
         loading="lazy"
         referrerPolicy="no-referrer"
       />
@@ -77,7 +77,7 @@ export function UserAvatar({ userLabel }: UserAvatarProps) {
   }
 
   return (
-    <span className="flex size-8 items-center justify-center rounded-full bg-background/80">
+    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3a3a3a]">
       <User className="size-4 text-muted-foreground" />
     </span>
   );

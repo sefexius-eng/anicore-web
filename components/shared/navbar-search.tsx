@@ -15,8 +15,6 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOnClickOutside } from "@/hooks/useOnClickOutside";
 import { cn, getImageUrl } from "@/lib/utils";
@@ -259,12 +257,10 @@ export function NavbarSearch() {
           border-radius: 10px;
         }
       `}</style>
-      <form
-        onSubmit={handleSearch}
-        className="order-3 flex w-full items-center gap-2 sm:order-2 sm:w-auto sm:max-w-xl sm:flex-1"
-      >
-        <div ref={searchContainerRef} className="relative min-w-0 flex-1">
-          <Input
+
+      <form onSubmit={handleSearch} className="mx-4 flex w-full max-w-[600px]">
+        <div ref={searchContainerRef} className="relative flex min-w-0 flex-1">
+          <input
             aria-label="Поиск аниме"
             aria-autocomplete="list"
             aria-controls={isDropdownVisible ? SEARCH_DROPDOWN_ID : undefined}
@@ -273,19 +269,30 @@ export function NavbarSearch() {
             aria-activedescendant={activeDescendantId}
             role="combobox"
             placeholder="Найти тайтл, жанр или студию"
-            className="h-10 min-w-0 flex-1 bg-muted/40"
+            className="flex-1 rounded-l-full border border-[#303030] bg-[#121212] px-4 py-2 text-white placeholder:text-[#717171] focus:border-blue-500 focus:outline-none"
             value={query}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
             onKeyDown={handleInputKeyDown}
           />
 
-          {isDropdownVisible && (
-            <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-xl border border-border/70 bg-popover/95 shadow-2xl backdrop-blur">
+          <button
+            type="submit"
+            aria-label="Поиск"
+            className="rounded-r-full border border-[#303030] border-l-0 bg-[#222222] px-5 py-2 text-white transition-colors hover:bg-[#303030]"
+          >
+            <Search className="size-5" />
+          </button>
+
+          {isDropdownVisible ? (
+            <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-2xl border border-[#303030] bg-[#1f1f1f] shadow-2xl">
               {isSearching ? (
                 <div className="space-y-2 p-3">
                   {Array.from({ length: 4 }).map((_, index) => (
-                    <div key={`search-skeleton-${index}`} className="flex items-center gap-3">
+                    <div
+                      key={`search-skeleton-${index}`}
+                      className="flex items-center gap-3"
+                    >
                       <Skeleton className="h-12 w-9 shrink-0 rounded-md" />
                       <div className="flex-1 space-y-1.5">
                         <Skeleton className="h-3 w-4/5" />
@@ -298,7 +305,7 @@ export function NavbarSearch() {
                 <ul
                   id={SEARCH_DROPDOWN_ID}
                   role="listbox"
-                  className="search-results-container dark-scrollbar max-h-80 overflow-y-auto overflow-x-hidden p-1.5"
+                  className="search-results-container max-h-80 overflow-y-auto overflow-x-hidden p-1.5"
                   onMouseLeave={() => setActiveIndex(-1)}
                 >
                   {results.map((anime, index) => {
@@ -314,15 +321,15 @@ export function NavbarSearch() {
                         <Link
                           href={`/anime/${anime.id}`}
                           className={cn(
-                            "flex items-center gap-3 rounded-lg px-2 py-2 transition-colors",
+                            "flex items-center gap-3 rounded-xl px-2 py-2 transition-colors",
                             isActive
-                              ? "bg-muted text-foreground"
-                              : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                              ? "bg-[#2f2f2f] text-white"
+                              : "text-[#b3b3b3] hover:bg-[#2a2a2a] hover:text-white",
                           )}
                           onMouseEnter={() => setActiveIndex(index)}
                           onClick={closeDropdown}
                         >
-                          <div className="relative h-12 w-9 shrink-0 overflow-hidden rounded-md border border-border/60">
+                          <div className="relative h-12 w-9 shrink-0 overflow-hidden rounded-md border border-[#303030]">
                             <Image
                               src={getImageUrl(anime.image_url)}
                               alt={anime.title}
@@ -333,10 +340,10 @@ export function NavbarSearch() {
                           </div>
 
                           <div className="min-w-0">
-                            <p className="line-clamp-1 text-sm font-medium text-foreground">
+                            <p className="line-clamp-1 text-sm font-medium text-white">
                               {anime.title}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-[#b3b3b3]">
                               {anime.score !== null
                                 ? `Оценка: ${anime.score.toFixed(2)}`
                                 : "Оценка: Нет"}
@@ -348,19 +355,13 @@ export function NavbarSearch() {
                   })}
                 </ul>
               ) : (
-                <p className="px-4 py-3 text-sm text-muted-foreground">
+                <p className="px-4 py-3 text-sm text-[#b3b3b3]">
                   По вашему запросу ничего не найдено
                 </p>
               )}
             </div>
-          )}
+          ) : null}
         </div>
-
-        <Button type="submit" className="h-10">
-          <Search className="size-4 sm:hidden" />
-          <span className="sr-only sm:hidden">Поиск</span>
-          <span className="hidden sm:inline">Поиск</span>
-        </Button>
       </form>
     </>
   );

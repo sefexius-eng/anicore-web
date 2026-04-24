@@ -1,62 +1,43 @@
 import Link from "next/link";
-import { History, LogIn, MonitorPlay } from "lucide-react";
+import { LogIn } from "lucide-react";
 
 import { NavbarSearch } from "@/components/shared/navbar-search";
-import { NavbarSignOutButton } from "@/components/shared/navbar-signout-button";
-import { UserAvatar } from "@/components/shared/user-avatar";
+import { UserDropdown } from "@/components/shared/user-dropdown";
 import { buttonVariants } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 export async function NavbarShell() {
   const session = await auth();
-  const userLabel =
-    session?.user?.name?.trim() || session?.user?.email?.trim() || "Профиль";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/75 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6 lg:px-8">
-        <Link
-          href="/"
-          className="order-1 flex shrink-0 items-center gap-2 text-xl font-semibold tracking-tight text-foreground transition-opacity hover:opacity-85"
-        >
-          <MonitorPlay className="size-5 text-sky-300" />
-          <span>AniMirok</span>
-        </Link>
-
-        <NavbarSearch />
-
-        <div className="order-2 ml-auto flex items-center gap-4 sm:order-3">
+    <header className="sticky top-0 z-40 bg-[#0f0f0f]">
+      <div className="flex items-center justify-between gap-4 bg-[#0f0f0f] px-4 py-2">
+        <div className="flex w-32 shrink-0 items-center">
           <Link
-            href="/history"
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "h-10 gap-2 px-3",
-            )}
+            href="/"
+            className="text-xl font-semibold tracking-tight text-white transition-opacity hover:opacity-85"
           >
-            <History className="size-4" />
-            <span>История</span>
+            AniMirok
           </Link>
+        </div>
 
+        <div className="flex min-w-0 flex-1 justify-center">
+          <NavbarSearch />
+        </div>
+
+        <div className="flex w-32 shrink-0 items-center justify-end">
           {session ? (
-            <div className="flex items-center gap-2">
-              <Link
-                href="/profile"
-                className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-sm text-foreground transition-colors hover:border-primary/40 hover:bg-muted/70"
-              >
-                <UserAvatar userLabel={userLabel} />
-                <span className="hidden max-w-44 truncate md:inline">
-                  {userLabel}
-                </span>
-              </Link>
-              <NavbarSignOutButton />
-            </div>
+            <UserDropdown
+              name={session.user?.name ?? null}
+              email={session.user?.email ?? null}
+            />
           ) : (
             <Link
               href="/login?callbackUrl=/"
               className={cn(
-                buttonVariants({ variant: "default" }),
-                "h-10 gap-2 px-3",
+                buttonVariants({ variant: "secondary" }),
+                "h-9 gap-2 rounded-full bg-white px-4 text-sm font-medium text-black hover:bg-zinc-200",
               )}
             >
               <LogIn className="size-4" />
