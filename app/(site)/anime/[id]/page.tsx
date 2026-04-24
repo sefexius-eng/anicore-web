@@ -1,10 +1,12 @@
 import { Suspense, cache } from "react";
+import type { Metadata } from "next";
 import Image from "next/image";
 
 import { AnimeWatchShell } from "@/components/shared/anime-watch-shell";
 import { getImageUrl } from "@/lib/utils";
 
 const JIKAN_REVALIDATE_SECONDS = 60 * 60;
+const CYRILLIC_TITLE_PATTERN = /[А-Яа-яЁё]/;
 
 interface AnimePageProps {
   params: Promise<{
@@ -36,6 +38,10 @@ interface JikanAnimeResponse {
   data?: JikanAnimeEntry;
 }
 
+interface ResolvedJikanAnimeEntry extends JikanAnimeEntry {
+  mal_id: number;
+}
+
 interface AnimeDetailsItem {
   id: number;
   title: string;
@@ -62,7 +68,7 @@ function getBestTitle(anime: JikanAnimeEntry | undefined): string {
     (title) =>
       title.type === "Russian" ||
       title.type === "ru" ||
-      (typeof title.title === "string" && /[А-Яа-яЁё]/.test(title.title)),
+      (typeof title.title === "string" && CYRILLIC_TITLE_PATTERN.test(title.title)),
   );
 
   if (russianTitle?.title?.trim()) {
@@ -80,7 +86,7 @@ function getBestTitle(anime: JikanAnimeEntry | undefined): string {
   return anime.title_english?.trim() || anime.title?.trim() || "";
 }
 
-const getAnimeDetails = cache(async (animeId: number): Promise<AnimeDetailsItem> => {
+const getJikanAnime = cache(async (animeId: number): Promise<ResolvedJikanAnimeEntry> => {
   const response = await fetch(`https://api.jikan.moe/v4/anime/${animeId}`, {
     headers: {
       Accept: "application/json",
@@ -101,6 +107,12 @@ const getAnimeDetails = cache(async (animeId: number): Promise<AnimeDetailsItem>
     throw new Error("Jikan returned an invalid anime payload.");
   }
 
+  return anime as ResolvedJikanAnimeEntry;
+});
+
+const getAnimeDetails = cache(async (animeId: number): Promise<AnimeDetailsItem> => {
+  const anime = await getJikanAnime(animeId);
+
   return {
     id: anime.mal_id,
     title: getBestTitle(anime) || `Anime #${animeId}`,
@@ -114,6 +126,43 @@ const getAnimeDetails = cache(async (animeId: number): Promise<AnimeDetailsItem>
         : null,
   };
 });
+
+export async function generateMetadata({
+  params,
+}: AnimePageProps): Promise<Metadata> {
+  const resolvedParams = await params;
+  const animeId = getRouteAnimeId(resolvedParams.id);
+
+  if (!Number.isInteger(animeId) || animeId <= 0) {
+    return { title: "AniMirok" };
+  }
+
+  try {
+    const anime = await getJikanAnime(animeId);
+    const title = getBestTitle(anime) || `Anime #${animeId}`;
+    const score =
+      typeof anime.score === "number" && Number.isFinite(anime.score)
+        ? anime.score
+        : "Нет";
+    const description =
+      cleanSynopsis(anime.synopsis?.trim() || "").slice(0, 160) ||
+      "Смотрите аниме в лучшем качестве на AniMirok.";
+    const imageUrl =
+      anime.images?.jpg?.large_image_url ?? anime.images?.jpg?.image_url ?? undefined;
+
+    return {
+      title: `${title} — Смотреть онлайн на AniMirok`,
+      description,
+      openGraph: {
+        title,
+        description: `Оценка: ${score} | Смотреть на AniMirok`,
+        images: imageUrl ? [{ url: imageUrl }] : undefined,
+      },
+    };
+  } catch {
+    return { title: "AniMirok" };
+  }
+}
 
 async function getAnimeDetailsSafely(animeId: number) {
   try {

@@ -5,14 +5,15 @@ import { AnimeCard } from "@/components/shared/anime-card";
 import { AvatarUpload } from "@/components/shared/avatar-upload";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getImageUrl } from "@/lib/utils";
 import { formatTime } from "@/lib/watch-history";
 import { type WatchlistStatus } from "@/lib/watchlist";
-import { getImageUrl } from "@/lib/utils";
 
 const HISTORY_LIMIT = 12;
 const WATCHLIST_SECTION_LIMIT = 12;
 const JIKAN_BATCH_SIZE = 4;
 const JIKAN_REVALIDATE_SECONDS = 60 * 60 * 6;
+const CYRILLIC_TITLE_PATTERN = /[А-Яа-яЁё]/;
 
 const WATCHLIST_SECTIONS: Array<{
   status: WatchlistStatus;
@@ -87,7 +88,7 @@ function getBestTitle(anime: JikanAnimeEntry | undefined): string {
     (title) =>
       title.type === "Russian" ||
       title.type === "ru" ||
-      (typeof title.title === "string" && /[А-Яа-яЁё]/.test(title.title)),
+      (typeof title.title === "string" && CYRILLIC_TITLE_PATTERN.test(title.title)),
   );
 
   if (russianTitle?.title?.trim()) {
@@ -266,6 +267,20 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
+  const completedCount = watchlistEntries.filter(
+    (entry) => entry.status === "COMPLETED",
+  ).length;
+  const totalWatchedCount = watchlistEntries.length;
+  const totalMinutes = completedCount * 288;
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+
+  let rank = "Новичок";
+  if (completedCount >= 10) rank = "Ученик";
+  if (completedCount >= 50) rank = "Анимешник";
+  if (completedCount >= 100) rank = "Отаку";
+  if (completedCount >= 500) rank = "Хикикомори";
+
   const groupedWatchlists = WATCHLIST_SECTIONS.map((section) => ({
     ...section,
     entries: watchlistEntries
@@ -301,6 +316,62 @@ export default async function ProfilePage() {
 
   return (
     <div className="space-y-8">
+      <section className="space-y-4 rounded-3xl border border-border/60 bg-card/70 p-6 shadow-2xl backdrop-blur-sm">
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.16em] text-sky-300">
+            Статистика
+          </p>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+            Ваш прогресс в AniMirok
+          </h2>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="flex flex-col items-center justify-center rounded-xl border border-[#333] bg-[#1a1a1a] p-4 text-center shadow-lg">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-blue-700 text-xs font-semibold uppercase tracking-[0.14em] text-white">
+              Rank
+            </div>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+              Ранг
+            </p>
+            <p className="mt-3 text-2xl font-semibold text-white">{rank}</p>
+            <p className="mt-2 text-xs text-slate-400">
+              Повышается за завершённые тайтлы
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center justify-center rounded-xl border border-[#333] bg-[#1a1a1a] p-4 text-center shadow-lg">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-cyan-600 text-lg font-semibold text-white">
+              {completedCount}
+            </div>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+              Просмотрено
+            </p>
+            <p className="mt-3 text-2xl font-semibold text-white">
+              {completedCount} тайтлов
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              {totalWatchedCount} всего в ваших списках
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center justify-center rounded-xl border border-[#333] bg-[#1a1a1a] p-4 text-center shadow-lg">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-rose-600 text-xs font-semibold uppercase tracking-[0.14em] text-white">
+              Time
+            </div>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+              Потрачено времени
+            </p>
+            <p className="mt-3 text-2xl font-semibold text-white">
+              {days} дн. {hours} ч.
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              Аппроксимация по завершённым сезонам
+            </p>
+          </div>
+        </div>
+      </section>
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="rounded-3xl border border-border/60 bg-card/70 p-6 shadow-2xl backdrop-blur-sm">
           <div className="space-y-4">
@@ -311,7 +382,8 @@ export default async function ProfilePage() {
               {user.name}
             </h1>
             <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              Здесь собраны ваши последние просмотры и персональные списки AniMirok.
+              Здесь собраны ваши последние просмотры и персональные списки
+              AniMirok.
             </p>
 
             <div className="grid gap-4 pt-2 sm:grid-cols-2">
@@ -347,7 +419,12 @@ export default async function ProfilePage() {
                   Сохранено
                 </p>
                 <p className="mt-2 text-sm font-medium text-foreground">
-                  {historyItems.length + groupedWatchlists.reduce((sum, section) => sum + section.entries.length, 0)} записей
+                  {historyItems.length +
+                    groupedWatchlists.reduce(
+                      (sum, section) => sum + section.entries.length,
+                      0,
+                    )}{" "}
+                  записей
                 </p>
               </div>
             </div>
