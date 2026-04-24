@@ -3,7 +3,10 @@
 /* eslint-disable @next/next/no-img-element */
 import type { ChangeEvent } from "react";
 import { useState } from "react";
+import { Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+import { cn } from "@/lib/utils";
 
 const AVATAR_PLACEHOLDER =
   "https://placehold.co/160x160/111827/ffffff?text=Avatar";
@@ -11,7 +14,10 @@ const MAX_AVATAR_FILE_SIZE = 1_500_000;
 
 interface AvatarUploadProps {
   currentImage?: string | null;
+  fallbackImage?: string;
   userName: string;
+  className?: string;
+  avatarClassName?: string;
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -37,15 +43,17 @@ function readFileAsDataUrl(file: File): Promise<string> {
 
 export function AvatarUpload({
   currentImage,
+  fallbackImage,
   userName,
+  className,
+  avatarClassName,
 }: AvatarUploadProps) {
   const router = useRouter();
-  const [previewSrc, setPreviewSrc] = useState(
-    currentImage || AVATAR_PLACEHOLDER,
-  );
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const avatarSrc = previewSrc ?? currentImage ?? fallbackImage ?? AVATAR_PLACEHOLDER;
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
@@ -70,7 +78,7 @@ export function AvatarUpload({
 
     setIsUploading(true);
     setErrorMessage(null);
-    setStatusMessage("Сохраняем аватар...");
+    setStatusMessage("Сохраняем...");
 
     try {
       const image = await readFileAsDataUrl(file);
@@ -99,7 +107,7 @@ export function AvatarUpload({
       window.dispatchEvent(new Event("anicore:user-avatar-updated"));
       router.refresh();
     } catch (error) {
-      setPreviewSrc(currentImage || AVATAR_PLACEHOLDER);
+      setPreviewSrc(null);
       setStatusMessage(null);
       setErrorMessage(
         error instanceof Error ? error.message : "Не удалось сохранить аватар.",
@@ -110,55 +118,54 @@ export function AvatarUpload({
   }
 
   return (
-    <section className="rounded-3xl border border-border/60 bg-card/70 p-6 shadow-2xl backdrop-blur-sm">
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">
-            Аватар профиля
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Выберите изображение, и мы сохраним его прямо в профиль.
-          </p>
+    <div className={cn("space-y-3", className)}>
+      <label
+        className={cn(
+          "group relative block cursor-pointer overflow-hidden rounded-full border-4 border-[#0f0f0f] shadow-[0_24px_50px_rgba(0,0,0,0.45)]",
+          avatarClassName,
+          isUploading && "cursor-wait",
+        )}
+      >
+        <img
+          src={avatarSrc}
+          alt={userName}
+          className="h-full w-full object-cover"
+          referrerPolicy="no-referrer"
+        />
+
+        <input
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={handleFileChange}
+          disabled={isUploading}
+        />
+
+        <div
+          className={cn(
+            "absolute inset-0 flex items-center justify-center bg-black/60 transition-opacity duration-200",
+            isUploading
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+          )}
+        >
+          <Camera className="size-8 text-white sm:size-9" />
         </div>
 
-        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-          <img
-            src={previewSrc}
-            alt={userName}
-            className="size-28 rounded-full border border-border/70 object-cover shadow-lg"
-            referrerPolicy="no-referrer"
-          />
+        <span className="sr-only">Изменить аватар</span>
+      </label>
 
-          <div className="space-y-3">
-            <label
-              htmlFor="avatar"
-              className="inline-flex cursor-pointer items-center rounded-xl border border-border/70 bg-background/80 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-            >
-              {isUploading ? "Загружаем..." : "Выбрать изображение"}
-            </label>
-            <input
-              id="avatar"
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={handleFileChange}
-              disabled={isUploading}
-            />
+      {statusMessage ? (
+        <p className="max-w-40 text-center text-xs font-medium text-slate-200">
+          {statusMessage}
+        </p>
+      ) : null}
 
-            <p className="text-xs text-muted-foreground">
-              Поддерживаются PNG, JPG и WEBP до 1.5 МБ.
-            </p>
-
-            {statusMessage ? (
-              <p className="text-sm text-foreground">{statusMessage}</p>
-            ) : null}
-
-            {errorMessage ? (
-              <p className="text-sm text-destructive">{errorMessage}</p>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    </section>
+      {errorMessage ? (
+        <p className="max-w-40 text-center text-xs font-medium text-red-300">
+          {errorMessage}
+        </p>
+      ) : null}
+    </div>
   );
 }

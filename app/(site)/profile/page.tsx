@@ -1,15 +1,5 @@
-/* eslint-disable @next/next/no-img-element */
 import { cache, type ReactNode } from "react";
-import {
-  Award,
-  Bookmark,
-  CalendarDays,
-  Clock3,
-  Mail,
-  Sparkles,
-  Tv2,
-  type LucideIcon,
-} from "lucide-react";
+import { Award, Clock3, Tv2, type LucideIcon } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { AnimeCard } from "@/components/shared/anime-card";
@@ -84,12 +74,6 @@ interface ProfileAnimeCardItem {
   episodes: number | null;
   score: number | null;
   posterOverlay?: ReactNode;
-}
-
-function formatDate(value: Date): string {
-  return new Intl.DateTimeFormat("ru-RU", {
-    dateStyle: "long",
-  }).format(value);
 }
 
 function buildAvatarFallback(userName: string): string {
@@ -248,31 +232,6 @@ function ProfileMetricCard({
   );
 }
 
-function ProfileDetailCard({
-  Icon,
-  label,
-  value,
-}: {
-  Icon: LucideIcon;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-[#0f172a]/70 p-4 shadow-lg shadow-black/20">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sky-200">
-          <Icon className="size-4" />
-        </div>
-
-        <div className="min-w-0">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{label}</p>
-          <p className="mt-1 truncate text-sm font-medium text-slate-100">{value}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ProfileShelf({
   eyebrow,
   title,
@@ -304,7 +263,7 @@ function ProfileShelf({
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-10 text-center text-sm text-slate-400">
-          Здесь пока пусто, но этот раздел заполнится, как только вы добавите тайтлы.
+          Пока пусто.
         </div>
       )}
     </section>
@@ -321,55 +280,50 @@ export default async function ProfilePage() {
 
   const [user, historyEntries, watchlistEntries, watchProgressEntries] =
     await Promise.all([
-    prisma.user.findUnique({
-      where: {
-        id: sessionUserId,
-      },
-      select: {
-        name: true,
-        email: true,
-        image: true,
-        birthDate: true,
-        createdAt: true,
-      },
-    }),
-    prisma.watchHistory.findMany({
-      where: {
-        userId: sessionUserId,
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-      take: HISTORY_LIMIT,
-      select: {
-        animeId: true,
-        lastTime: true,
-        updatedAt: true,
-      },
-    }),
-    prisma.watchlist.findMany({
-      where: {
-        userId: sessionUserId,
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-      select: {
-        animeId: true,
-        status: true,
-        updatedAt: true,
-      },
-    }),
-    prisma.watchHistory.findMany({
-      where: {
-        userId: sessionUserId,
-      },
-      select: {
-        animeId: true,
-        episodesWatched: true,
-      },
-    }),
-  ]);
+      prisma.user.findUnique({
+        where: {
+          id: sessionUserId,
+        },
+        select: {
+          name: true,
+          image: true,
+        },
+      }),
+      prisma.watchHistory.findMany({
+        where: {
+          userId: sessionUserId,
+        },
+        orderBy: {
+          updatedAt: "desc",
+        },
+        take: HISTORY_LIMIT,
+        select: {
+          animeId: true,
+          lastTime: true,
+        },
+      }),
+      prisma.watchlist.findMany({
+        where: {
+          userId: sessionUserId,
+        },
+        orderBy: {
+          updatedAt: "desc",
+        },
+        select: {
+          animeId: true,
+          status: true,
+        },
+      }),
+      prisma.watchHistory.findMany({
+        where: {
+          userId: sessionUserId,
+        },
+        select: {
+          animeId: true,
+          episodesWatched: true,
+        },
+      }),
+    ]);
 
   if (!user) {
     redirect("/login");
@@ -378,7 +332,6 @@ export default async function ProfilePage() {
   const completedCount = watchlistEntries.filter(
     (entry) => entry.status === "COMPLETED",
   ).length;
-  const totalWatchedCount = watchlistEntries.length;
   const totalMinutes = completedCount * 288;
   const days = Math.floor(totalMinutes / (24 * 60));
   const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
@@ -386,7 +339,6 @@ export default async function ProfilePage() {
     days > 0 ? `${days} д. ${hours} ч.` : `${Math.max(hours, 1)} ч.`;
   const rank = getRank(completedCount);
   const avatarSrc = user.image?.trim() || buildAvatarFallback(user.name);
-  const savedEntriesCount = historyEntries.length + watchlistEntries.length;
 
   const groupedWatchlists = WATCHLIST_SECTIONS.map((section) => ({
     ...section,
@@ -424,35 +376,11 @@ export default async function ProfilePage() {
     ];
   });
 
-  const profileFacts = [
-    {
-      Icon: Mail,
-      label: "Email",
-      value: user.email,
-    },
-    {
-      Icon: CalendarDays,
-      label: "Дата рождения",
-      value: formatDate(user.birthDate),
-    },
-    {
-      Icon: Sparkles,
-      label: "В AniMirok с",
-      value: formatDate(user.createdAt),
-    },
-    {
-      Icon: Bookmark,
-      label: "Сохранено",
-      value: `${savedEntriesCount} записей`,
-    },
-  ];
-
   const metrics = [
     {
       Icon: Award,
       label: "Ранг",
       value: rank,
-      description: "Повышается за завершенные тайтлы и регулярную активность.",
       toneClass:
         "from-amber-300/35 to-orange-500/20 text-amber-100 ring-1 ring-amber-300/30",
     },
@@ -460,7 +388,6 @@ export default async function ProfilePage() {
       Icon: Tv2,
       label: "Просмотрено",
       value: `${completedCount} тайтлов`,
-      description: `${totalWatchedCount} всего в ваших списках и подборках.`,
       toneClass:
         "from-sky-300/35 to-cyan-500/20 text-sky-100 ring-1 ring-sky-300/30",
     },
@@ -468,7 +395,6 @@ export default async function ProfilePage() {
       Icon: Clock3,
       label: "Время",
       value: timeSpentLabel,
-      description: "Оценка по завершенным сезонам с учетом общего прогресса.",
       toneClass:
         "from-fuchsia-300/35 to-violet-500/20 text-fuchsia-100 ring-1 ring-fuchsia-300/30",
     },
@@ -525,51 +451,22 @@ export default async function ProfilePage() {
         </div>
 
         <div className="relative px-6 pb-8 sm:px-8">
-          <div className="-mt-16 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between sm:-mt-20">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
-              <div className="relative">
-                <img
-                  src={avatarSrc}
-                  alt={user.name}
-                  className="h-32 w-32 rounded-full border-4 border-[#0f0f0f] object-cover shadow-[0_24px_50px_rgba(0,0,0,0.45)] sm:h-40 sm:w-40"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute bottom-2 right-2 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-100 backdrop-blur-sm">
-                  Channel
-                </div>
-              </div>
+          <div className="-mt-16 flex flex-col gap-5 sm:-mt-20 sm:flex-row sm:items-end">
+            <AvatarUpload
+              currentImage={user.image}
+              fallbackImage={avatarSrc}
+              userName={user.name}
+              className="flex flex-col items-center"
+              avatarClassName="h-32 w-32 sm:h-40 sm:w-40"
+            />
 
-              <div className="max-w-2xl space-y-3">
-                <p className="text-xs uppercase tracking-[0.22em] text-sky-200/90">
-                  Профиль AniMirok
-                </p>
-                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                  {user.name}
-                </h1>
-                <p className="hidden max-w-2xl text-sm leading-6 text-slate-200 sm:text-base">
-                  Ваш личный канал в AniMirok: возвращайтесь к последним сериям,
-                  держите watchlist под рукой и отслеживайте прогресс в одном месте.
-                </p>
-
-                <div className="flex flex-wrap gap-3 text-sm text-slate-200">
-                  <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-3 py-1.5 backdrop-blur-sm">
-                    {user.email}
-                  </span>
-                  <span className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-3 py-1.5 backdrop-blur-sm">
-                    С нами с {formatDate(user.createdAt)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="hidden rounded-3xl border border-white/10 bg-black/20 p-4 backdrop-blur-md lg:max-w-sm">
-              <p className="text-xs uppercase tracking-[0.18em] text-sky-200/90">
-                Профиль в цифрах
+            <div className="space-y-3">
+              <p className="text-xs uppercase tracking-[0.22em] text-sky-200/90">
+                Профиль AniMirok
               </p>
-              <p className="mt-2 text-sm leading-6 text-slate-200">
-                Последние открытия, активные списки и общее время просмотра теперь
-                собраны в формате, который ощущается как премиальная страница канала.
-              </p>
+              <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                {user.name}
+              </h1>
             </div>
           </div>
 
@@ -586,36 +483,6 @@ export default async function ProfilePage() {
           </div>
         </div>
       </section>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.32)] backdrop-blur-sm">
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.18em] text-sky-300">
-              Детали профиля
-            </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-white">
-              Все, что нужно для быстрого возвращения к просмотру
-            </h2>
-            <p className="hidden max-w-2xl text-sm leading-6 text-slate-300">
-              Обновляйте аватар, держите важные данные рядом и используйте профиль как
-              центральную точку для истории и личных списков.
-            </p>
-          </div>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            {profileFacts.map((fact) => (
-              <ProfileDetailCard
-                key={fact.label}
-                Icon={fact.Icon}
-                label={fact.label}
-                value={fact.value}
-              />
-            ))}
-          </div>
-        </section>
-
-        <AvatarUpload currentImage={user.image} userName={user.name} />
-      </div>
 
       <ProfileShelf
         eyebrow="История просмотров"
