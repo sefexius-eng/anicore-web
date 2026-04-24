@@ -16,7 +16,7 @@ export async function NavbarShell() {
         <div className="flex w-32 shrink-0 items-center">
           <Link
             href="/"
-            className="text-xl font-semibold tracking-tight text-white transition-opacity hover:opacity-85"
+            className="bg-gradient-to-r from-cyan-400 to-blue-600 bg-clip-text text-2xl font-black tracking-tighter text-transparent transition-opacity hover:opacity-85"
           >
             AniMirok
           </Link>

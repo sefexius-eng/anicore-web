@@ -8,6 +8,9 @@ import { getImageUrl } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 const JIKAN_REVALIDATE_SECONDS = 60 * 60;
+const POPULAR_GRID_LIMIT = 8;
+const RECOMMENDATIONS_GRID_LIMIT = 12;
+const RECOMMENDATIONS_FETCH_LIMIT = 18;
 
 interface JikanTitleEntry {
   type?: string;
@@ -126,7 +129,7 @@ async function getRecommendedAnime(
   }
 
   const recommendationsPayload = await fetchJikanJson<JikanAnimeListResponse>(
-    `https://api.jikan.moe/v4/anime?genres=${genreIds}&order_by=members&sort=desc&type=tv&limit=18`,
+    `https://api.jikan.moe/v4/anime?genres=${genreIds}&order_by=members&sort=desc&type=tv&limit=${RECOMMENDATIONS_FETCH_LIMIT}`,
   );
   const recommendations = Array.isArray(recommendationsPayload?.data)
     ? deduplicateByMalId(recommendationsPayload.data)
@@ -160,12 +163,13 @@ async function getRecommendedAnime(
             : null,
       };
     })
-    .filter((anime): anime is HomepageAnimeCardItem => anime !== null);
+    .filter((anime): anime is HomepageAnimeCardItem => anime !== null)
+    .slice(0, RECOMMENDATIONS_GRID_LIMIT);
 }
 
 async function getPopularAnime(): Promise<HomepageAnimeCardItem[]> {
   const payload = await fetchJikanJson<JikanAnimeListResponse>(
-    "https://api.jikan.moe/v4/seasons/now?sfw=true",
+    `https://api.jikan.moe/v4/seasons/now?sfw=true&limit=${POPULAR_GRID_LIMIT}`,
   );
 
   const popularAnime = Array.isArray(payload?.data)
@@ -175,7 +179,7 @@ async function getPopularAnime(): Promise<HomepageAnimeCardItem[]> {
     : [];
 
   return deduplicateByMalId(popularAnime)
-    .slice(0, 12)
+    .slice(0, POPULAR_GRID_LIMIT)
     .map<HomepageAnimeCardItem | null>((anime) => {
       const id = anime.mal_id;
       const title = getBestTitle(anime);
@@ -211,7 +215,7 @@ function SectionFallback({ label }: { label: string }) {
 
 function AnimeGrid({ items }: { items: HomepageAnimeCardItem[] }) {
   return (
-    <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
       {items.map((anime) => (
         <AnimeCard
           key={anime.id}
@@ -253,8 +257,7 @@ async function RecommendationsBlock({ userId }: { userId: number }) {
           Рекомендуем вам
         </h2>
         <p className="text-sm text-muted-foreground">
-          Популярные TV-сериалы по жанрам вашего последнего просмотренного
-          тайтла.
+          Подборка по жанрам вашего последнего просмотренного тайтла.
         </p>
       </div>
 
@@ -273,8 +276,7 @@ async function PopularBlock() {
           Популярное сейчас
         </h2>
         <p className="text-sm text-muted-foreground">
-          Актуальные онгоинги из Jikan API с русскими названиями, где они
-          доступны.
+          Онгоинги сезона, которые уже собирают наибольший интерес.
         </p>
       </div>
 
@@ -289,17 +291,15 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col gap-10">
-      {Number.isInteger(sessionUserId) && sessionUserId > 0 ? (
-        <Suspense
-          fallback={<SectionFallback label="Загрузка рекомендаций..." />}
-        >
-          <RecommendationsBlock userId={sessionUserId} />
-        </Suspense>
-      ) : null}
-
       <Suspense fallback={<SectionFallback label="Загрузка популярного..." />}>
         <PopularBlock />
       </Suspense>
+
+      {Number.isInteger(sessionUserId) && sessionUserId > 0 ? (
+        <Suspense fallback={<SectionFallback label="Загрузка рекомендаций..." />}>
+          <RecommendationsBlock userId={sessionUserId} />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

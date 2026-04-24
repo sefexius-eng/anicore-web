@@ -63,6 +63,7 @@ interface JikanAnimeEntry {
   title?: string;
   title_english?: string | null;
   titles?: JikanTitleEntry[] | null;
+  episodes?: number | null;
   score?: number | null;
   images?: {
     jpg?: {
@@ -80,6 +81,7 @@ interface ProfileAnimeCardItem {
   id: number;
   title: string;
   image_url: string;
+  episodes: number | null;
   score: number | null;
   posterOverlay?: ReactNode;
 }
@@ -175,6 +177,10 @@ const getProfileAnimeCard = cache(
         image_url: getImageUrl(
           anime?.images?.jpg?.large_image_url ?? anime?.images?.jpg?.image_url ?? null,
         ),
+        episodes:
+          typeof anime?.episodes === "number" && Number.isFinite(anime.episodes)
+            ? anime.episodes
+            : null,
         score:
           typeof anime?.score === "number" && Number.isFinite(anime.score)
             ? anime.score
@@ -185,6 +191,7 @@ const getProfileAnimeCard = cache(
         id: animeId,
         title: `Anime #${animeId}`,
         image_url: getImageUrl(null),
+        episodes: null,
         score: null,
       };
     }
@@ -220,13 +227,11 @@ function ProfileMetricCard({
   Icon,
   label,
   value,
-  description,
   toneClass,
 }: {
   Icon: LucideIcon;
   label: string;
   value: string;
-  description: string;
   toneClass: string;
 }) {
   return (
@@ -239,7 +244,6 @@ function ProfileMetricCard({
 
       <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</p>
       <p className="mt-3 text-2xl font-semibold tracking-tight text-white">{value}</p>
-      <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
     </div>
   );
 }
@@ -315,7 +319,8 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  const [user, historyEntries, watchlistEntries] = await Promise.all([
+  const [user, historyEntries, watchlistEntries, watchProgressEntries] =
+    await Promise.all([
     prisma.user.findUnique({
       where: {
         id: sessionUserId,
@@ -355,6 +360,15 @@ export default async function ProfilePage() {
         updatedAt: true,
       },
     }),
+    prisma.watchHistory.findMany({
+      where: {
+        userId: sessionUserId,
+      },
+      select: {
+        animeId: true,
+        episodesWatched: true,
+      },
+    }),
   ]);
 
   if (!user) {
@@ -387,6 +401,9 @@ export default async function ProfilePage() {
       section.entries.map((entry) => entry.animeId),
     ),
   ]);
+  const watchProgressMap = new Map<number, number>(
+    watchProgressEntries.map((entry) => [entry.animeId, entry.episodesWatched]),
+  );
 
   const historyItems: ProfileAnimeCardItem[] = historyEntries.flatMap((entry) => {
     const anime = animeMap.get(entry.animeId);
@@ -457,6 +474,45 @@ export default async function ProfilePage() {
     },
   ];
 
+  const watchlistSectionItems = groupedWatchlists.map((section) => ({
+    ...section,
+    items: section.entries
+      .map((entry) => {
+        const anime = animeMap.get(entry.animeId);
+
+        if (!anime) {
+          return null;
+        }
+
+        if (section.status === "WATCHING") {
+          const episodesWatched = watchProgressMap.get(entry.animeId) ?? 0;
+
+          return {
+            ...anime,
+            posterOverlay: (
+              <span className="inline-flex rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white shadow-lg ring-1 ring-white/10 backdrop-blur-sm sm:text-sm">
+                Просмотрено: {episodesWatched} / {anime.episodes ?? "?"}
+              </span>
+            ),
+          };
+        }
+
+        if (section.status === "PLANNED") {
+          return {
+            ...anime,
+            posterOverlay: (
+              <span className="inline-flex rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white shadow-lg ring-1 ring-white/10 backdrop-blur-sm sm:text-sm">
+                Серий: {anime.episodes ?? "?"}
+              </span>
+            ),
+          };
+        }
+
+        return anime;
+      })
+      .filter((item): item is ProfileAnimeCardItem => item !== null),
+  }));
+
   return (
     <div className="space-y-8 pb-6">
       <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[#090f1d] shadow-[0_35px_100px_rgba(0,0,0,0.42)]">
@@ -490,7 +546,7 @@ export default async function ProfilePage() {
                 <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
                   {user.name}
                 </h1>
-                <p className="max-w-2xl text-sm leading-6 text-slate-200 sm:text-base">
+                <p className="hidden max-w-2xl text-sm leading-6 text-slate-200 sm:text-base">
                   Ваш личный канал в AniMirok: возвращайтесь к последним сериям,
                   держите watchlist под рукой и отслеживайте прогресс в одном месте.
                 </p>
@@ -506,7 +562,7 @@ export default async function ProfilePage() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-black/20 p-4 backdrop-blur-md lg:max-w-sm">
+            <div className="hidden rounded-3xl border border-white/10 bg-black/20 p-4 backdrop-blur-md lg:max-w-sm">
               <p className="text-xs uppercase tracking-[0.18em] text-sky-200/90">
                 Профиль в цифрах
               </p>
@@ -524,7 +580,6 @@ export default async function ProfilePage() {
                 Icon={metric.Icon}
                 label={metric.label}
                 value={metric.value}
-                description={metric.description}
                 toneClass={metric.toneClass}
               />
             ))}
@@ -541,7 +596,7 @@ export default async function ProfilePage() {
             <h2 className="text-2xl font-semibold tracking-tight text-white">
               Все, что нужно для быстрого возвращения к просмотру
             </h2>
-            <p className="max-w-2xl text-sm leading-6 text-slate-300">
+            <p className="hidden max-w-2xl text-sm leading-6 text-slate-300">
               Обновляйте аватар, держите важные данные рядом и используйте профиль как
               центральную точку для истории и личных списков.
             </p>
@@ -568,14 +623,12 @@ export default async function ProfilePage() {
         items={historyItems}
       />
 
-      {groupedWatchlists.map((section) => (
+      {watchlistSectionItems.map((section) => (
         <ProfileShelf
           key={section.status}
           eyebrow={section.eyebrow}
           title={section.title}
-          items={section.entries
-            .map((entry) => animeMap.get(entry.animeId) ?? null)
-            .filter((item): item is ProfileAnimeCardItem => item !== null)}
+          items={section.items}
         />
       ))}
     </div>

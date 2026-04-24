@@ -227,6 +227,7 @@ export function NavbarSearch() {
       window.SpeechRecognition ?? window.webkitSpeechRecognition;
 
     if (!SpeechRecognitionApi) {
+      recognitionRef.current = null;
       return;
     }
 
@@ -499,13 +500,13 @@ export function NavbarSearch() {
           ) : null}
         </div>
 
-        <button
+        {isSpeechRecognitionSupported ? (
+          <button
           type="button"
           aria-label={
             isListening ? "Остановить голосовой поиск" : "Начать голосовой поиск"
           }
           aria-pressed={isListening}
-          disabled={!isSpeechRecognitionSupported}
           title={
             isSpeechRecognitionSupported
               ? "Голосовой поиск"
@@ -516,12 +517,12 @@ export function NavbarSearch() {
             isListening
               ? "animate-pulse border-red-500 bg-red-600 hover:bg-red-500"
               : "bg-[#1a1a1a] hover:bg-[#2b2b2b]",
-            !isSpeechRecognitionSupported && "cursor-not-allowed opacity-50",
           )}
           onClick={handleMicrophoneClick}
         >
           <Mic className="size-5" />
-        </button>
+          </button>
+        ) : null}
       </form>
     </>
   );
