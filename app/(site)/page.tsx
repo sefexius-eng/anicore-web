@@ -46,19 +46,20 @@ interface HomepageAnimeCardItem {
 }
 
 function getRussianTitle(anime: JikanAnimeEntry): string {
-  if (anime.title_ru?.trim()) {
-    return anime.title_ru.trim();
+  if (!anime) {
+    return "";
   }
-
-  const ruTitle = anime.titles?.find(
+  let ruTitle = anime.titles?.find(
     (title) => title.type === "Russian" || title.type === "ru",
   );
-
-  if (ruTitle?.title?.trim()) {
-    return ruTitle.title.trim();
+  if (!ruTitle) {
+    ruTitle = anime.titles?.find(
+      (title) =>
+        typeof title.title === "string" &&
+        /[А-Яа-яЁё]/.test(title.title),
+    );
   }
-
-  return anime.title?.trim() || "Без названия";
+  return ruTitle?.title?.trim() || anime.title?.trim() || "";
 }
 
 async function getRecommendedAnime(
@@ -156,7 +157,7 @@ async function getRecommendedAnime(
 async function getPopularAnime(): Promise<HomepageAnimeCardItem[]> {
   try {
     const popRes = await fetch(
-      "https://api.jikan.moe/v4/top/anime?filter=airing&limit=12",
+      "https://api.jikan.moe/v4/top/anime?filter=airing&type=tv&limit=12",
       {
         cache: "no-store",
         headers: {

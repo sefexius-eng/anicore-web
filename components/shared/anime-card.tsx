@@ -31,7 +31,7 @@ export function AnimeCard({
   posterOverlay,
 }: AnimeCardProps) {
   const posterUrl = getImageUrl(image ?? image_url ?? null);
-  const formattedScore = score !== null ? score.toFixed(2) : "Нет";
+  const formattedScore = score || "Нет";
 
   const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
     const img = event.currentTarget;
@@ -47,7 +47,7 @@ export function AnimeCard({
 
   return (
     <Link href={`/anime/${id}`} className="block">
-      <div className="flex flex-col gap-3 cursor-pointer group">
+      <div className="flex flex-col gap-2 cursor-pointer group">
         <div className="relative w-full aspect-[16/9] sm:aspect-[3/4] rounded-xl overflow-hidden group shadow-md group-hover:shadow-2xl transition-shadow duration-300">
           <img
             src={posterUrl}
