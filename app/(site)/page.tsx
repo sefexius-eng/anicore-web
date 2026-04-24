@@ -14,9 +14,11 @@ interface JikanTitleEntry {
 interface JikanAnimeEntry {
   mal_id?: number;
   title?: string;
+  title_english?: string | null;
   title_ru?: string | null;
   titles?: JikanTitleEntry[] | null;
   score?: number | null;
+  members?: number | null;
   genres?: Array<{
     mal_id?: number;
   }> | null;
@@ -45,21 +47,38 @@ interface HomepageAnimeCardItem {
   score: number | null;
 }
 
-function getRussianTitle(anime: JikanAnimeEntry): string {
+function deduplicateByMalId(animeList: JikanAnimeEntry[]): JikanAnimeEntry[] {
+  return animeList.filter(
+    (value, index, self) =>
+      index === self.findIndex((anime) => anime.mal_id === value.mal_id),
+  );
+}
+
+function getBestTitle(anime: JikanAnimeEntry): string {
   if (!anime) {
     return "";
   }
-  let ruTitle = anime.titles?.find(
-    (title) => title.type === "Russian" || title.type === "ru",
+
+  const ruTitle = anime.titles?.find(
+    (title) =>
+      title.type === "Russian" ||
+      title.type === "ru" ||
+      (typeof title.title === "string" && /[А-Яа-яЁё]/.test(title.title)),
   );
-  if (!ruTitle) {
-    ruTitle = anime.titles?.find(
-      (title) =>
-        typeof title.title === "string" &&
-        /[А-Яа-яЁё]/.test(title.title),
-    );
+
+  if (ruTitle?.title?.trim()) {
+    return ruTitle.title.trim();
   }
-  return ruTitle?.title?.trim() || anime.title?.trim() || "";
+
+  const enTitle = anime.titles?.find(
+    (title) => title.type === "English" || title.type === "en",
+  );
+
+  if (enTitle?.title?.trim()) {
+    return enTitle.title.trim();
+  }
+
+  return anime.title_english?.trim() || anime.title?.trim() || "";
 }
 
 async function getRecommendedAnime(
@@ -111,44 +130,39 @@ async function getRecommendedAnime(
     }
 
     const recPayload = (await recRes.json()) as JikanAnimeListResponse;
-    const recommendations = Array.isArray(recPayload.data) ? recPayload.data : [];
+    const recommendations = Array.isArray(recPayload.data)
+      ? deduplicateByMalId(recPayload.data)
+      : [];
 
-    return Array.from(
-      new Map(
-        recommendations
-          .map<HomepageAnimeCardItem | null>((anime) => {
-            const id = anime.mal_id;
-            const title = getRussianTitle(anime);
-            const imageUrl = getImageUrl(
-              anime.images?.jpg?.large_image_url ?? null,
-            );
+    return recommendations
+      .map<HomepageAnimeCardItem | null>((anime) => {
+        const id = anime.mal_id;
+        const title = getBestTitle(anime);
+        const imageUrl = getImageUrl(anime.images?.jpg?.large_image_url ?? null);
 
-            if (
-              typeof id !== "number" ||
-              !Number.isInteger(id) ||
-              id === animeId ||
-              !title
-            ) {
-              return null;
-            }
+        if (
+          typeof id !== "number" ||
+          !Number.isInteger(id) ||
+          id === animeId ||
+          !title
+        ) {
+          return null;
+        }
 
-            return {
-              id,
-              title,
-              image: {
-                original: imageUrl,
-              },
-              image_url: imageUrl,
-              score:
-                typeof anime.score === "number" && Number.isFinite(anime.score)
-                  ? anime.score
-                  : null,
-            };
-          })
-          .filter((anime): anime is HomepageAnimeCardItem => anime !== null)
-          .map((anime) => [anime.id, anime]),
-      ).values(),
-    );
+        return {
+          id,
+          title,
+          image: {
+            original: imageUrl,
+          },
+          image_url: imageUrl,
+          score:
+            typeof anime.score === "number" && Number.isFinite(anime.score)
+              ? anime.score
+              : null,
+        };
+      })
+      .filter((anime): anime is HomepageAnimeCardItem => anime !== null);
   } catch {
     return [];
   }
@@ -157,7 +171,7 @@ async function getRecommendedAnime(
 async function getPopularAnime(): Promise<HomepageAnimeCardItem[]> {
   try {
     const popRes = await fetch(
-      "https://api.jikan.moe/v4/top/anime?filter=airing&type=tv&limit=12",
+      "https://api.jikan.moe/v4/seasons/now?sfw=true",
       {
         cache: "no-store",
         headers: {
@@ -171,12 +185,17 @@ async function getPopularAnime(): Promise<HomepageAnimeCardItem[]> {
     }
 
     const payload = (await popRes.json()) as JikanAnimeListResponse;
-    const popularAnime = Array.isArray(payload.data) ? payload.data : [];
+    const popularAnime = Array.isArray(payload.data)
+      ? [...payload.data].sort(
+          (left, right) => (right.members ?? 0) - (left.members ?? 0),
+        )
+      : [];
 
-    return popularAnime
+    return deduplicateByMalId(popularAnime)
+      .slice(0, 12)
       .map<HomepageAnimeCardItem | null>((anime) => {
         const id = anime.mal_id;
-        const title = getRussianTitle(anime);
+        const title = getBestTitle(anime);
         const imageUrl = getImageUrl(anime.images?.jpg?.large_image_url ?? null);
 
         if (typeof id !== "number" || !Number.isInteger(id) || !title) {
