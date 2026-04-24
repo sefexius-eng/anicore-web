@@ -34,12 +34,15 @@ export function AnimeCard({
   const formattedScore = score !== null ? score.toFixed(2) : "Нет";
 
   return (
-    <Link href={`/anime/${id}`} className="group block">
-      <div className="relative">
+    <Link
+      href={`/anime/${id}`}
+      className="group flex cursor-pointer flex-col gap-2"
+    >
+      <div className="relative w-full aspect-[3/4] overflow-hidden rounded-xl">
         <img
           src={posterUrl}
           alt={title || "Anime Poster"}
-          className="aspect-[2/3] w-full rounded-xl object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           loading="lazy"
           referrerPolicy="no-referrer"
           onError={(event) => {
@@ -54,14 +57,14 @@ export function AnimeCard({
         ) : null}
       </div>
 
-      <div className="pt-3">
+      <div>
         <h3
-          className="line-clamp-2 text-sm font-semibold leading-5 text-foreground sm:text-[0.95rem]"
+          className="line-clamp-2 text-sm font-semibold text-white transition-colors group-hover:text-blue-400"
           title={title}
         >
           {title}
         </h3>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="text-xs text-gray-400">
           Оценка: {formattedScore}
         </p>
       </div>

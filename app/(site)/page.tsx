@@ -4,6 +4,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getImageUrl } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 interface ShikimoriRecommendationEntry {
   id?: number;
   name?: string;
@@ -49,7 +52,7 @@ async function getRecommendedAnime(
   animeId: number,
 ): Promise<RecommendedAnime[]> {
   try {
-    const response = await fetch(
+    const res = await fetch(
       `https://shikimori.one/api/animes/${animeId}/similar`,
       {
         cache: "no-store",
@@ -59,19 +62,21 @@ async function getRecommendedAnime(
       },
     );
 
-    if (!response.ok) {
+    if (!res.ok) {
       return [];
     }
 
-    const payload = (await response.json()) as ShikimoriRecommendationEntry[];
+    const payload = (await res.json()) as ShikimoriRecommendationEntry[];
 
     if (!Array.isArray(payload)) {
       return [];
     }
 
+    const data = payload.slice(0, 6);
+
     return Array.from(
       new Map(
-        payload
+        data
           .map<RecommendedAnime | null>((anime) => {
             const id = anime.id;
             const title = anime.russian?.trim() || anime.name?.trim();
@@ -98,7 +103,7 @@ async function getRecommendedAnime(
           .filter((anime): anime is RecommendedAnime => anime !== null)
           .map((anime) => [anime.id, anime]),
       ).values(),
-    ).slice(0, 10);
+    ).slice(0, 6);
   } catch {
     return [];
   }

@@ -20,20 +20,24 @@ export function getImageUrl(img: ImageLike) {
     return IMAGE_PLACEHOLDER_URL;
   }
 
-  const path =
+  let path =
     typeof img === "string"
       ? img
-      : img?.original || img?.preview || img?.url || img?.x160;
+      : img?.original || img?.preview || img?.x160 || img?.url || "";
 
   if (!path) {
     return IMAGE_PLACEHOLDER_URL;
   }
 
   if (path.startsWith("http")) {
-    return path;
+    return path.replace("shikimori.me", "shikimori.one");
   }
 
-  return `https://desu.shikimori.one${path}`;
+  if (!path.startsWith("/")) {
+    path = `/${path}`;
+  }
+
+  return `https://shikimori.one${path}`;
 }
 
 export function cn(...inputs: ClassValue[]) {
