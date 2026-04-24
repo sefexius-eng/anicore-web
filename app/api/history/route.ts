@@ -67,6 +67,8 @@ export async function POST(request: Request) {
     },
   });
 
+  revalidatePath("/");
+
   return NextResponse.json({ success: true });
 }
 

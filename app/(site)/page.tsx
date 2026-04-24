@@ -1,5 +1,4 @@
 import { AnimeCard } from "@/components/shared/anime-card";
-import { HomePopularContent } from "@/components/shared/home-popular-content";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getImageUrl } from "@/lib/utils";
@@ -7,59 +6,50 @@ import { getImageUrl } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-interface ShikimoriAnimeEntry {
-  id?: number;
-  name?: string;
-  russian?: string | null;
-  score?: string | number | null;
-  image?: {
-    original?: string | null;
-    preview?: string | null;
-    url?: string | null;
-    x160?: string | null;
-  } | null;
+interface JikanRecommendationResponse {
+  data?: Array<{
+    entry?: {
+      mal_id?: number;
+      title?: string;
+      images?: {
+        jpg?: {
+          large_image_url?: string | null;
+        };
+      };
+    };
+  }>;
 }
 
-interface ShikimoriAnimeDetailsResponse {
-  genres?: Array<{
-    id?: number;
-  }> | null;
+interface JikanTopAnimeResponse {
+  data?: Array<{
+    mal_id?: number;
+    title?: string;
+    title_ru?: string | null;
+    score?: number | null;
+    images?: {
+      jpg?: {
+        large_image_url?: string | null;
+      };
+    };
+  }>;
 }
 
-interface RecommendedAnime {
+interface HomepageAnimeCardItem {
   id: number;
   title: string;
   image: {
     original?: string | null;
-    preview?: string | null;
-    url?: string | null;
-    x160?: string | null;
   } | null;
   image_url: string;
   score: number | null;
 }
 
-function resolveRecommendationScore(
-  score: ShikimoriAnimeEntry["score"],
-): number | null {
-  if (typeof score === "number" && Number.isFinite(score)) {
-    return score;
-  }
-
-  if (typeof score === "string") {
-    const parsedScore = Number(score);
-    return Number.isFinite(parsedScore) ? parsedScore : null;
-  }
-
-  return null;
-}
-
 async function getRecommendedAnime(
   animeId: number,
-): Promise<RecommendedAnime[]> {
+): Promise<HomepageAnimeCardItem[]> {
   try {
-    const detailsResponse = await fetch(
-      `https://shikimori.one/api/animes/${animeId}`,
+    const res = await fetch(
+      `https://api.jikan.moe/v4/anime/${animeId}/recommendations`,
       {
         cache: "no-store",
         headers: {
@@ -68,87 +58,89 @@ async function getRecommendedAnime(
       },
     );
 
-    if (!detailsResponse.ok) {
+    if (!res.ok) {
       return [];
     }
 
-    const animeDetails =
-      (await detailsResponse.json()) as ShikimoriAnimeDetailsResponse;
-
-    if (!Array.isArray(animeDetails.genres)) {
-      return [];
-    }
-
-    const genreIds = animeDetails.genres
-      .map((genre) => genre.id)
-      .filter((genreId): genreId is number => typeof genreId === "number")
-      .join(",");
-
-    if (!genreIds) {
-      return [];
-    }
-
-    const searchParams = new URLSearchParams({
-      genre: genreIds,
-      order: "popularity",
-      limit: "8",
-    });
-
-    const response = await fetch(
-      `https://shikimori.one/api/animes?${searchParams.toString()}`,
-      {
-        cache: "no-store",
-        headers: {
-          Accept: "application/json",
-        },
-      },
-    );
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const payload = (await response.json()) as ShikimoriAnimeEntry[];
-
-    if (!Array.isArray(payload)) {
-      return [];
-    }
+    const payload = (await res.json()) as JikanRecommendationResponse;
+    const jikanRecs = Array.isArray(payload.data) ? payload.data.slice(0, 12) : [];
 
     return Array.from(
       new Map(
-        payload
-          .map<RecommendedAnime | null>((anime) => {
-            const id = anime.id;
-            const title = anime.russian?.trim() || anime.name?.trim();
+        jikanRecs
+          .map<HomepageAnimeCardItem | null>((item) => {
+            const id = item.entry?.mal_id;
+            const title = item.entry?.title?.trim();
+            const imageUrl = getImageUrl(
+              item.entry?.images?.jpg?.large_image_url ?? null,
+            );
 
-            if (
-              typeof id !== "number" ||
-              !Number.isInteger(id) ||
-              id === animeId ||
-              !title
-            ) {
+            if (typeof id !== "number" || !Number.isInteger(id) || !title) {
               return null;
             }
 
             return {
               id,
               title,
-              image: anime.image
-                ? {
-                    original: anime.image.original ?? null,
-                    preview: anime.image.preview ?? null,
-                    url: anime.image.url ?? null,
-                    x160: anime.image.x160 ?? null,
-                  }
-                : null,
-              image_url: getImageUrl(anime.image),
-              score: resolveRecommendationScore(anime.score),
+              image: {
+                original: imageUrl,
+              },
+              image_url: imageUrl,
+              score: null,
             };
           })
-          .filter((anime): anime is RecommendedAnime => anime !== null)
+          .filter((anime): anime is HomepageAnimeCardItem => anime !== null)
           .map((anime) => [anime.id, anime]),
       ).values(),
     );
+  } catch {
+    return [];
+  }
+}
+
+async function getPopularAnime(): Promise<HomepageAnimeCardItem[]> {
+  try {
+    const popRes = await fetch(
+      "https://api.jikan.moe/v4/top/anime?filter=airing&limit=12",
+      {
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+        },
+      },
+    );
+
+    if (!popRes.ok) {
+      return [];
+    }
+
+    const payload = (await popRes.json()) as JikanTopAnimeResponse;
+    const popularAnime = Array.isArray(payload.data) ? payload.data : [];
+
+    return popularAnime
+      .map<HomepageAnimeCardItem | null>((anime) => {
+        const id = anime.mal_id;
+        const title = anime.title_ru?.trim() || anime.title?.trim();
+        const imageUrl = getImageUrl(anime.images?.jpg?.large_image_url ?? null);
+
+        if (typeof id !== "number" || !Number.isInteger(id) || !title) {
+          return null;
+        }
+
+        return {
+          id,
+          title,
+          image: {
+            original: imageUrl,
+          },
+          image_url: imageUrl,
+          score:
+            typeof anime.score === "number" && Number.isFinite(anime.score)
+              ? anime.score
+              : null,
+        };
+      })
+      .filter((anime): anime is HomepageAnimeCardItem => anime !== null);
   } catch {
     return [];
   }
@@ -170,9 +162,10 @@ export default async function HomePage() {
         })
       : null;
 
-  const recommendations = lastWatched
-    ? await getRecommendedAnime(lastWatched.animeId)
-    : [];
+  const [recommendations, popularAnime] = await Promise.all([
+    lastWatched ? getRecommendedAnime(lastWatched.animeId) : Promise.resolve([]),
+    getPopularAnime(),
+  ]);
 
   return (
     <div className="flex flex-col gap-10">
@@ -183,7 +176,8 @@ export default async function HomePage() {
               Рекомендуем вам
             </h2>
             <p className="text-sm text-muted-foreground">
-              Подборка по жанрам вашего последнего просмотренного тайтла.
+              Подборка рекомендаций от людей на основе вашего последнего
+              просмотренного тайтла.
             </p>
           </div>
 
@@ -202,7 +196,29 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      <HomePopularContent />
+      <section className="space-y-6">
+        <div className="space-y-2">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+            Популярное сейчас
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Актуальные онгоинги из Jikan API с более стабильными постерами.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+          {popularAnime.map((anime) => (
+            <AnimeCard
+              key={anime.id}
+              id={anime.id}
+              title={anime.title}
+              image={anime.image}
+              image_url={anime.image_url}
+              score={anime.score}
+            />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
