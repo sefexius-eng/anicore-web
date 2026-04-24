@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import { History, LogIn, User } from "lucide-react";
+import { History, LogIn, MonitorPlay, User } from "lucide-react";
 
 import { NavbarSearch } from "@/components/shared/navbar-search";
 import { NavbarSignOutButton } from "@/components/shared/navbar-signout-button";
@@ -19,9 +19,10 @@ export async function NavbarShell() {
       <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="order-1 shrink-0 text-xl font-semibold tracking-tight text-foreground transition-opacity hover:opacity-85"
+          className="order-1 flex shrink-0 items-center gap-2 text-xl font-semibold tracking-tight text-foreground transition-opacity hover:opacity-85"
         >
-          AniCore.me
+          <MonitorPlay className="size-5 text-sky-300" />
+          <span>AniMirok</span>
         </Link>
 
         <NavbarSearch />

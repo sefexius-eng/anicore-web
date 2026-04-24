@@ -96,25 +96,6 @@ function persistWatchHistory(items: WatchHistoryItem[]): WatchHistoryItem[] {
   return normalizedItems;
 }
 
-function syncWatchHistoryOnServer(item: WatchHistoryItem) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  void fetch("/api/user/history", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "same-origin",
-    keepalive: true,
-    body: JSON.stringify({
-      animeId: item.id,
-      lastTime: item.stoppedAt,
-    }),
-  }).catch(() => undefined);
-}
-
 export function readWatchHistory(): WatchHistoryItem[] {
   if (typeof window === "undefined") {
     return [];
@@ -139,10 +120,7 @@ export function addToWatchHistory(item: WatchHistoryItem): WatchHistoryItem[] {
     ...readWatchHistory().filter((historyItem) => historyItem.id !== item.id),
   ];
 
-  const normalizedItems = persistWatchHistory(nextItems);
-  syncWatchHistoryOnServer(item);
-
-  return normalizedItems;
+  return persistWatchHistory(nextItems);
 }
 
 export function removeFromHistory(id: number): WatchHistoryItem[] {

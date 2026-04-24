@@ -1,11 +1,12 @@
+import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-import { auth } from "@/lib/auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 interface HistoryRequestBody {
   animeId?: unknown;
-  lastTime?: unknown;
+  time?: unknown;
 }
 
 function normalizeInteger(value: unknown): number | null {
@@ -25,18 +26,18 @@ function normalizeInteger(value: unknown): number | null {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  const userId = Number(session?.user?.id ?? Number.NaN);
+  const session = await getServerSession(authOptions);
+  const userId = normalizeInteger(session?.user?.id);
 
-  if (!Number.isInteger(userId) || userId <= 0) {
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = (await request.json().catch(() => null)) as HistoryRequestBody | null;
   const animeId = normalizeInteger(body?.animeId);
-  const lastTime = normalizeInteger(body?.lastTime);
+  const time = normalizeInteger(body?.time);
 
-  if (!animeId || lastTime === null) {
+  if (!animeId || time === null) {
     return NextResponse.json(
       { error: "Invalid history payload." },
       { status: 400 },
@@ -51,12 +52,12 @@ export async function POST(request: Request) {
       },
     },
     update: {
-      lastTime,
+      lastTime: time,
     },
     create: {
       userId,
       animeId,
-      lastTime,
+      lastTime: time,
       episodesWatched: 0,
     },
   });

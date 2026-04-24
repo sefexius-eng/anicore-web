@@ -162,7 +162,7 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {recommendations.map((anime) => (
               <AnimeCard
                 key={anime.id}

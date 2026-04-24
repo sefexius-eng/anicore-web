@@ -92,7 +92,7 @@ export function HomePopularContent() {
           Загрузка...
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {showcaseAnime.map((anime) => (
             <AnimeCard
               key={anime.id}

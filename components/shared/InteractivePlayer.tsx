@@ -32,6 +32,7 @@ const IFRAME_HISTORY_SAVE_GAP_SECONDS = Math.max(
   1,
   Math.floor(WATCH_HISTORY_SAVE_THROTTLE_MS / 1000),
 );
+const DATABASE_HISTORY_SAVE_GAP_SECONDS = 20;
 
 function isTranslationOption(value: unknown): value is TranslationOption {
   if (typeof value !== "object" || value === null) {
@@ -67,6 +68,7 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastSavedTimeRef = useRef(0);
+  const lastDatabaseSavedTimeRef = useRef(0);
   const historyRef = useRef<InteractivePlayerHistory | null>(history);
 
   useEffect(() => {
@@ -75,7 +77,26 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
 
   useEffect(() => {
     lastSavedTimeRef.current = 0;
+    lastDatabaseSavedTimeRef.current = 0;
   }, [history?.id, iframeSrc]);
+
+  const syncHistoryToDatabase = useCallback(
+    async (animeId: number, currentTime: number) => {
+      await fetch("/api/history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "same-origin",
+        keepalive: true,
+        body: JSON.stringify({
+          animeId,
+          time: currentTime,
+        }),
+      });
+    },
+    [],
+  );
 
   const loadPlayer = useCallback(
     async (translationId: number | null) => {
@@ -203,6 +224,18 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
         timestamp: Date.now(),
         stoppedAt: currentTime,
       });
+
+      if (
+        Math.abs(currentTime - lastDatabaseSavedTimeRef.current) <
+        DATABASE_HISTORY_SAVE_GAP_SECONDS
+      ) {
+        return;
+      }
+
+      lastDatabaseSavedTimeRef.current = currentTime;
+      void syncHistoryToDatabase(currentHistory.id, currentTime).catch(
+        () => undefined,
+      );
     };
 
     window.addEventListener("message", handleMessage);
@@ -210,7 +243,7 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, []);
+  }, [syncHistoryToDatabase]);
 
   const handleTranslationSelect = useCallback(
     (translationId: number) => {
