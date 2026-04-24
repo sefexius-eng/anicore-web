@@ -70,7 +70,7 @@ export default async function ProfilePage() {
 
             <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
               <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                В AniCore с
+                В AniMirok с
               </p>
               <p className="mt-2 text-sm font-medium text-foreground">
                 {formatDate(user.createdAt)}

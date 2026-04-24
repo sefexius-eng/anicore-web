@@ -17,6 +17,7 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
+    id?: string;
     image?: string | null;
     birthDate?: string | null;
   }

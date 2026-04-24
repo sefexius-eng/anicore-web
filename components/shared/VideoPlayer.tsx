@@ -45,7 +45,7 @@ function resolveCurrentTime(event: Event): number | null {
 
 export function VideoPlayer({
   src,
-  title = "AniCore Player",
+  title = "AniMirok Player",
   history,
 }: VideoPlayerProps) {
   const lastSavedTime = useRef(0);

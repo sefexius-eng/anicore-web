@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AniCore.me - Смотри аниме в лучшем качестве",
+  title: "AniMirok - Смотри аниме в лучшем качестве",
   description:
-    "AniCore.me - современная платформа для просмотра аниме онлайн в высоком качестве.",
+    "AniMirok - современная платформа для просмотра аниме онлайн в высоком качестве.",
 };
 
 export default function RootLayout({

@@ -51,7 +51,7 @@ export function WatchArea({ malId, seasonLinks, history }: WatchAreaProps) {
 
                 if (season.isCurrent) {
                   return (
-                    <span key={season.id} className={seasonClasses} title={`MAL ID: ${season.id}`}>
+                    <span key={season.id} className={seasonClasses} title={season.label}>
                       {season.label}
                     </span>
                   );
@@ -62,7 +62,7 @@ export function WatchArea({ malId, seasonLinks, history }: WatchAreaProps) {
                     key={season.id}
                     href={season.href}
                     className={seasonClasses}
-                    title={`MAL ID: ${season.id}`}
+                    title={season.label}
                   >
                     {season.label}
                   </Link>

@@ -339,7 +339,7 @@ export function NavbarSearch() {
                             <p className="text-xs text-muted-foreground">
                               {anime.score !== null
                                 ? `Оценка: ${anime.score.toFixed(2)}`
-                                : "Оценка: N/A"}
+                                : "Оценка: Нет"}
                             </p>
                           </div>
                         </Link>

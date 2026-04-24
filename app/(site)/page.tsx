@@ -2,26 +2,20 @@ import { AnimeCard } from "@/components/shared/anime-card";
 import { HomePopularContent } from "@/components/shared/home-popular-content";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getImageUrl } from "@/lib/utils";
 
-interface JikanRecommendationEntry {
-  entry?: {
-    mal_id?: number;
-    title?: string;
-    images?: {
-      jpg?: {
-        image_url?: string | null;
-        large_image_url?: string | null;
-      };
-      webp?: {
-        image_url?: string | null;
-        large_image_url?: string | null;
-      };
-    };
+interface ShikimoriRecommendationEntry {
+  id?: number;
+  name?: string;
+  russian?: string | null;
+  score?: string | number | null;
+  image?: {
+    original?: string | null;
+    preview?: string | null;
+    x160?: string | null;
+    x96?: string | null;
+    x48?: string | null;
   };
-}
-
-interface JikanRecommendationsResponse {
-  data?: JikanRecommendationEntry[];
 }
 
 interface RecommendedAnime {
@@ -30,6 +24,7 @@ interface RecommendedAnime {
   image: {
     original?: string | null;
     preview?: string | null;
+    x160?: string | null;
   } | null;
   image_url: string;
   score: number | null;
@@ -39,15 +34,31 @@ const RECOMMENDATION_FALLBACK_IMAGE =
   "https://placehold.co/225x320/1a1a1a/ffffff?text=No+Image";
 
 function resolveRecommendationImage(
-  recommendation: JikanRecommendationEntry,
+  recommendation: ShikimoriRecommendationEntry,
 ): string {
-  return (
-    recommendation.entry?.images?.jpg?.large_image_url ||
-    recommendation.entry?.images?.jpg?.image_url ||
-    recommendation.entry?.images?.webp?.large_image_url ||
-    recommendation.entry?.images?.webp?.image_url ||
-    RECOMMENDATION_FALLBACK_IMAGE
+  return getImageUrl(
+    recommendation.image?.original ??
+      recommendation.image?.preview ??
+      recommendation.image?.x160 ??
+      recommendation.image?.x96 ??
+      recommendation.image?.x48 ??
+      RECOMMENDATION_FALLBACK_IMAGE,
   );
+}
+
+function resolveRecommendationScore(
+  score: ShikimoriRecommendationEntry["score"],
+): number | null {
+  if (typeof score === "number" && Number.isFinite(score)) {
+    return score;
+  }
+
+  if (typeof score === "string") {
+    const parsedScore = Number(score);
+    return Number.isFinite(parsedScore) ? parsedScore : null;
+  }
+
+  return null;
 }
 
 async function getRecommendedAnime(userId: number): Promise<RecommendedAnime[]> {
@@ -69,9 +80,12 @@ async function getRecommendedAnime(userId: number): Promise<RecommendedAnime[]> 
 
   try {
     const response = await fetch(
-      `https://api.jikan.moe/v4/anime/${latestHistoryItem.animeId}/recommendations`,
+      `https://shikimori.one/api/animes/${latestHistoryItem.animeId}/similar`,
       {
         cache: "no-store",
+        headers: {
+          Accept: "application/json",
+        },
       },
     );
 
@@ -79,33 +93,35 @@ async function getRecommendedAnime(userId: number): Promise<RecommendedAnime[]> 
       return [];
     }
 
-    const payload =
-      (await response.json()) as JikanRecommendationsResponse;
+    const payload = (await response.json()) as ShikimoriRecommendationEntry[];
 
-    if (!Array.isArray(payload.data)) {
+    if (!Array.isArray(payload)) {
       return [];
     }
 
-    const recommendations = payload.data
-      .map<RecommendedAnime | null>((recommendation) => {
-        const id = recommendation.entry?.mal_id;
-        const title = recommendation.entry?.title?.trim();
+    const recommendations = payload
+      .map<RecommendedAnime | null>((anime) => {
+        const id = anime.id;
+        const title = anime.russian?.trim() || anime.name?.trim();
 
         if (typeof id !== "number" || !Number.isInteger(id) || !title) {
           return null;
         }
 
-        const imageUrl = resolveRecommendationImage(recommendation);
+        const imageUrl = resolveRecommendationImage(anime);
 
         return {
           id,
           title,
-          image: {
-            original: imageUrl,
-            preview: imageUrl,
-          },
+          image: anime.image
+            ? {
+                original: anime.image.original ?? null,
+                preview: anime.image.preview ?? null,
+                x160: anime.image.x160 ?? anime.image.x96 ?? null,
+              }
+            : null,
           image_url: imageUrl,
-          score: null,
+          score: resolveRecommendationScore(anime.score),
         } satisfies RecommendedAnime;
       })
       .filter((recommendation): recommendation is RecommendedAnime =>
@@ -113,7 +129,12 @@ async function getRecommendedAnime(userId: number): Promise<RecommendedAnime[]> 
       );
 
     return Array.from(
-      new Map(recommendations.map((recommendation) => [recommendation.id, recommendation])).values(),
+      new Map(
+        recommendations.map((recommendation) => [
+          recommendation.id,
+          recommendation,
+        ]),
+      ).values(),
     ).slice(0, 10);
   } catch {
     return [];
@@ -139,7 +160,7 @@ export default async function HomePage() {
             Онлайн-кинотеатр аниме
           </p>
           <h1 className="max-w-3xl text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
-            Смотри аниме в лучшем качестве на AniCore
+            Смотри аниме в лучшем качестве на AniMirok
           </h1>
           <p className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
             Новинки сезона, проверенная классика и удобная навигация по жанрам.

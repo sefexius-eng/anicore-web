@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getImageUrl, IMAGE_PLACEHOLDER_URL } from "@/lib/utils";
 
 interface AnimeImage {
   original?: string | null;
@@ -29,40 +30,23 @@ export function AnimeCard({
   score,
   posterOverlay,
 }: AnimeCardProps) {
-  const formattedScore = score !== null ? score.toFixed(2) : "N/A";
-  const fallbackImageUrl =
-    "https://placehold.co/225x320/1a1a1a/ffffff?text=No+Image";
-  const getValidImageUrl = (img?: AnimeImage | string | null) => {
-    if (!img) {
-      return fallbackImageUrl;
-    }
-
-    const path =
-      typeof img === "string" ? img : img.original || img.preview || img.x160;
-
-    if (!path) {
-      return fallbackImageUrl;
-    }
-
-    if (path.startsWith("http")) {
-      return path;
-    }
-
-    return `https://shikimori.one${path}`;
-  };
+  const formattedScore = score !== null ? score.toFixed(2) : "Нет";
+  const posterUrl = getImageUrl(
+    image?.original ?? image?.preview ?? image?.x160 ?? image_url ?? null,
+  );
 
   return (
     <Link href={`/anime/${id}`} className="block">
       <Card className="cursor-pointer overflow-hidden border-border/70 bg-card/80 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:shadow-xl hover:ring-2 hover:ring-primary">
         <div className="relative aspect-[2/3] w-full overflow-hidden">
           <img
-            src={getValidImageUrl(image ?? image_url ?? null)}
+            src={posterUrl}
             alt={title || "Anime Poster"}
             className="w-full h-full object-cover"
             loading="lazy"
             referrerPolicy="no-referrer"
             onError={(event) => {
-              event.currentTarget.src = fallbackImageUrl;
+              event.currentTarget.src = IMAGE_PLACEHOLDER_URL;
             }}
           />
 
@@ -80,10 +64,9 @@ export function AnimeCard({
         </CardHeader>
 
         <CardContent className="p-4 pt-0 text-sm text-muted-foreground">
-          <div className="flex items-center justify-between gap-2">
-            <span>MAL ID: {id}</span>
+          <div className="flex items-center justify-end gap-2">
             <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-xs font-medium text-foreground">
-              Score: {formattedScore}
+              Оценка: {formattedScore}
             </span>
           </div>
         </CardContent>

@@ -59,7 +59,7 @@ export function HistoryContent() {
 
             <p className="max-w-2xl text-sm text-muted-foreground">
               История хранится локально в браузере и показывает последние 50
-              аниме, которые вы открывали на AniCore.
+              аниме, которые вы открывали на AniMirok.
             </p>
           </div>
 

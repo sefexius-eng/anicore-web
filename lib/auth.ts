@@ -7,20 +7,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { isAdult } from "@/lib/age";
 import { prisma } from "@/lib/prisma";
 
-function normalizeBirthDate(value: Date | string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const parsedValue = value instanceof Date ? value : new Date(value);
-
-  if (Number.isNaN(parsedValue.getTime())) {
-    return null;
-  }
-
-  return parsedValue.toISOString();
-}
-
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
@@ -77,30 +63,43 @@ export const authOptions: NextAuthOptions = {
           id: String(user.id),
           email: user.email,
           name: user.name,
-          image: user.image,
-          birthDate: user.birthDate.toISOString(),
         };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
+      delete token.picture;
+      delete token.image;
+      delete token.birthDate;
+
       if (user) {
+        token.id = user.id;
         token.sub = user.id;
-        token.name = user.name ?? token.name;
-        token.email = user.email ?? token.email;
-        token.image = user.image ?? null;
-        token.birthDate =
-          "birthDate" in user ? normalizeBirthDate(user.birthDate) : null;
+        token.name = user.name ?? null;
+        token.email = user.email ?? null;
       }
 
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.sub ?? "";
+      if (token && session.user) {
+        const tokenUserId =
+          typeof token.id === "string"
+            ? token.id
+            : typeof token.sub === "string"
+              ? token.sub
+              : "";
 
-        const sessionUserId = Number(token.sub);
+        session.user.id = tokenUserId;
+        session.user.name =
+          typeof token.name === "string" ? token.name : session.user.name;
+        session.user.email =
+          typeof token.email === "string" ? token.email : session.user.email;
+        session.user.image = null;
+        session.user.birthDate = null;
+
+        const sessionUserId = Number(tokenUserId);
 
         if (Number.isInteger(sessionUserId) && sessionUserId > 0) {
           const user = await prisma.user.findUnique({
@@ -108,27 +107,14 @@ export const authOptions: NextAuthOptions = {
               id: sessionUserId,
             },
             select: {
-              name: true,
-              email: true,
-              image: true,
               birthDate: true,
             },
           });
 
           if (user) {
-            session.user.name = user.name;
-            session.user.email = user.email;
-            session.user.image = user.image;
             session.user.birthDate = user.birthDate.toISOString();
-
-            return session;
           }
         }
-
-        session.user.image =
-          typeof token.image === "string" ? token.image : session.user.image ?? null;
-        session.user.birthDate =
-          typeof token.birthDate === "string" ? token.birthDate : null;
       }
 
       return session;

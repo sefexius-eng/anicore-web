@@ -209,11 +209,8 @@ export default function AnimePage() {
             </h1>
 
             <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="rounded-full border border-border/70 bg-muted/40 px-3 py-1 text-muted-foreground">
-                MAL ID: {anime.id}
-              </span>
               <span className="rounded-full border border-border/70 bg-muted/40 px-3 py-1 text-foreground">
-                Score: {anime.score !== null ? anime.score.toFixed(2) : "N/A"}
+                Оценка: {anime.score !== null ? anime.score.toFixed(2) : "Нет"}
               </span>
             </div>
 
