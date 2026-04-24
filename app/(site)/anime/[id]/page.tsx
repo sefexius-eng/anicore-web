@@ -5,8 +5,7 @@ import Image from "next/image";
 import { AnimeWatchShell } from "@/components/shared/anime-watch-shell";
 import { getImageUrl } from "@/lib/utils";
 
-const JIKAN_REVALIDATE_SECONDS = 60 * 60;
-const CYRILLIC_TITLE_PATTERN = /[А-Яа-яЁё]/;
+const ANIME_REVALIDATE_SECONDS = 60 * 60;
 
 interface AnimePageProps {
   params: Promise<{
@@ -14,38 +13,30 @@ interface AnimePageProps {
   }>;
 }
 
-interface JikanTitleEntry {
-  type?: string;
-  title?: string;
+interface AnimeEntry {
+  id?: number;
+  name?: string | null;
+  russian?: string | null;
+  title?: string | null;
+  description?: string | null;
+  score?: string | number | null;
+  image?: {
+    original?: string | null;
+    preview?: string | null;
+    x160?: string | null;
+    x96?: string | null;
+    x48?: string | null;
+  } | null;
 }
 
-interface JikanAnimeEntry {
-  mal_id?: number;
-  title?: string;
-  title_english?: string | null;
-  titles?: JikanTitleEntry[] | null;
-  synopsis?: string | null;
-  score?: number | null;
-  images?: {
-    jpg?: {
-      large_image_url?: string | null;
-      image_url?: string | null;
-    };
-  };
-}
-
-interface JikanAnimeResponse {
-  data?: JikanAnimeEntry;
-}
-
-interface ResolvedJikanAnimeEntry extends JikanAnimeEntry {
-  mal_id: number;
+interface ResolvedAnimeEntry extends AnimeEntry {
+  id: number;
 }
 
 interface AnimeDetailsItem {
   id: number;
   title: string;
-  synopsis: string;
+  description: string;
   image_url: string;
   score: number | null;
 }
@@ -55,75 +46,63 @@ function getRouteAnimeId(value: string | string[] | undefined): number {
   return Number(rawId);
 }
 
-function cleanSynopsis(text: string): string {
+function cleanDescription(text: string): string {
   return text.replace(/\[[^\]]+\]/g, "").trim();
 }
 
-function getBestTitle(anime: JikanAnimeEntry | undefined): string {
+function getBestTitle(anime: AnimeEntry | undefined): string {
   if (!anime) {
     return "";
   }
 
-  const russianTitle = anime.titles?.find(
-    (title) =>
-      title.type === "Russian" ||
-      title.type === "ru" ||
-      (typeof title.title === "string" && CYRILLIC_TITLE_PATTERN.test(title.title)),
-  );
-
-  if (russianTitle?.title?.trim()) {
-    return russianTitle.title.trim();
-  }
-
-  const englishTitle = anime.titles?.find(
-    (title) => title.type === "English" || title.type === "en",
-  );
-
-  if (englishTitle?.title?.trim()) {
-    return englishTitle.title.trim();
-  }
-
-  return anime.title_english?.trim() || anime.title?.trim() || "";
+  return anime.russian?.trim() || anime.name?.trim() || anime.title?.trim() || "";
 }
 
-const getJikanAnime = cache(async (animeId: number): Promise<ResolvedJikanAnimeEntry> => {
-  const response = await fetch(`https://api.jikan.moe/v4/anime/${animeId}`, {
+function getScore(score: AnimeEntry["score"]): number | null {
+  if (typeof score === "number" && Number.isFinite(score)) {
+    return score;
+  }
+
+  if (typeof score === "string") {
+    const parsedScore = Number(score);
+    return Number.isFinite(parsedScore) ? parsedScore : null;
+  }
+
+  return null;
+}
+
+const getAnime = cache(async (animeId: number): Promise<ResolvedAnimeEntry> => {
+  const response = await fetch(`https://shikimori.one/api/animes/${animeId}`, {
     headers: {
       Accept: "application/json",
     },
     next: {
-      revalidate: JIKAN_REVALIDATE_SECONDS,
+      revalidate: ANIME_REVALIDATE_SECONDS,
     },
   });
 
   if (!response.ok) {
-    throw new Error(`Jikan request failed with status ${response.status}.`);
+    throw new Error(`Anime request failed with status ${response.status}.`);
   }
 
-  const payload = (await response.json()) as JikanAnimeResponse;
-  const anime = payload.data;
+  const anime = (await response.json()) as AnimeEntry;
 
-  if (!anime || typeof anime.mal_id !== "number") {
-    throw new Error("Jikan returned an invalid anime payload.");
+  if (!anime || typeof anime.id !== "number") {
+    throw new Error("Anime source returned an invalid anime payload.");
   }
 
-  return anime as ResolvedJikanAnimeEntry;
+  return anime as ResolvedAnimeEntry;
 });
 
 const getAnimeDetails = cache(async (animeId: number): Promise<AnimeDetailsItem> => {
-  const anime = await getJikanAnime(animeId);
+  const anime = await getAnime(animeId);
 
   return {
-    id: anime.mal_id,
+    id: anime.id,
     title: getBestTitle(anime) || `Anime #${animeId}`,
-    synopsis: cleanSynopsis(anime.synopsis?.trim() || ""),
-    image_url: getImageUrl(
-      anime.images?.jpg?.large_image_url ?? anime.images?.jpg?.image_url ?? null,
-    ),
-    score:
-      typeof anime.score === "number" && Number.isFinite(anime.score)
-        ? anime.score
-        : null,
+    description: cleanDescription(anime.description?.trim() || ""),
+    image_url: getImageUrl(anime.image ?? null),
+    score: getScore(anime.score),
   };
 });
 
@@ -138,17 +117,13 @@ export async function generateMetadata({
   }
 
   try {
-    const anime = await getJikanAnime(animeId);
+    const anime = await getAnime(animeId);
     const title = getBestTitle(anime) || `Anime #${animeId}`;
-    const score =
-      typeof anime.score === "number" && Number.isFinite(anime.score)
-        ? anime.score
-        : "Нет";
+    const score = getScore(anime.score) ?? "Нет";
     const description =
-      cleanSynopsis(anime.synopsis?.trim() || "").slice(0, 160) ||
+      cleanDescription(anime.description?.trim() || "").slice(0, 160) ||
       "Смотрите аниме в лучшем качестве на AniMirok.";
-    const imageUrl =
-      anime.images?.jpg?.large_image_url ?? anime.images?.jpg?.image_url ?? undefined;
+    const imageUrl = getImageUrl(anime.image ?? null);
 
     return {
       title: `${title} — Смотреть онлайн на AniMirok`,
@@ -221,14 +196,14 @@ async function AnimeDetailsBlock({ animeId }: { animeId: number }) {
 
   return (
     <section className="rounded-3xl border border-border/60 bg-card/70 p-5 shadow-2xl backdrop-blur-sm sm:p-6">
-      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-        <div className="relative mx-auto w-full max-w-[220px] overflow-hidden rounded-2xl border border-border/70 bg-muted/20">
-          <div className="relative aspect-[2/3] w-full">
+      <div className="grid gap-6 md:grid-cols-[minmax(250px,300px)_1fr] md:items-start">
+        <div className="mx-auto w-full max-w-[250px] shrink-0 sm:max-w-[300px]">
+          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl border border-[#282828] bg-muted/20 shadow-lg">
             <Image
               src={anime.image_url}
               alt={anime.title}
               fill
-              sizes="(max-width: 768px) 70vw, 220px"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 250px, 300px"
               className="object-cover"
             />
           </div>
@@ -250,7 +225,7 @@ async function AnimeDetailsBlock({ animeId }: { animeId: number }) {
           </div>
 
           <p className="whitespace-pre-line text-sm leading-7 text-muted-foreground sm:text-base">
-            {anime.synopsis || "Описание для этого тайтла пока недоступно."}
+            {anime.description || "Описание на русском языке пока отсутствует."}
           </p>
         </div>
       </div>
