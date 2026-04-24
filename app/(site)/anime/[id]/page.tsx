@@ -71,6 +71,16 @@ function getScore(score: AnimeEntry["score"]): number | null {
   return null;
 }
 
+function getScoreLabel(score: AnimeEntry["score"]): string {
+  const resolvedScore = getScore(score);
+
+  if (resolvedScore === null) {
+    return "Нет";
+  }
+
+  return resolvedScore.toFixed(1);
+}
+
 const getAnime = cache(async (animeId: number): Promise<ResolvedAnimeEntry> => {
   const response = await fetch(`https://shikimori.one/api/animes/${animeId}`, {
     headers: {
@@ -119,19 +129,23 @@ export async function generateMetadata({
   try {
     const anime = await getAnime(animeId);
     const title = getBestTitle(anime) || `Anime #${animeId}`;
-    const score = getScore(anime.score) ?? "Нет";
-    const description =
-      cleanDescription(anime.description?.trim() || "").slice(0, 160) ||
-      "Смотрите аниме в лучшем качестве на AniMirok.";
+    const description = `Оценка: ${getScoreLabel(anime.score)} | Смотреть онлайн в высоком качестве`;
     const imageUrl = getImageUrl(anime.image ?? null);
 
     return {
-      title: `${title} — Смотреть онлайн на AniMirok`,
+      title,
       description,
       openGraph: {
         title,
-        description: `Оценка: ${score} | Смотреть на AniMirok`,
-        images: imageUrl ? [{ url: imageUrl }] : undefined,
+        description,
+        siteName: "AniMirok",
+        images: imageUrl ? [{ url: imageUrl, alt: title }] : undefined,
+      },
+      twitter: {
+        card: "summary",
+        title,
+        description,
+        images: imageUrl ? [imageUrl] : undefined,
       },
     };
   } catch {

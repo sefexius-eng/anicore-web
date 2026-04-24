@@ -14,6 +14,12 @@ export interface AnimeShowcaseItem {
   score: number | null;
 }
 
+export interface AnimeSearchParams {
+  search?: string;
+  genre?: string;
+  season?: string;
+}
+
 export interface AnimeDetailsItem extends AnimeShowcaseItem {
   synopsis: string;
   genres: string[];
@@ -261,21 +267,38 @@ export async function getAnimeDetailsById(
 }
 
 export async function searchAnime(
-  query: string,
+  params: AnimeSearchParams | string,
   limit = 20,
   options: ShikimoriFetchOptions = {},
 ): Promise<AnimeShowcaseItem[]> {
-  const searchQuery = query.trim();
+  const normalizedParams =
+    typeof params === "string"
+      ? { search: params }
+      : params;
+  const searchQuery = normalizedParams.search?.trim() || "";
+  const genre = normalizedParams.genre?.trim() || "";
+  const season = normalizedParams.season?.trim() || "";
 
-  if (!searchQuery) {
+  if (!searchQuery && !genre && !season) {
     return [];
   }
 
   const searchParams = new URLSearchParams({
-    search: searchQuery,
     limit: String(limit),
     censored: "true",
   });
+
+  if (searchQuery) {
+    searchParams.set("search", searchQuery);
+  }
+
+  if (genre) {
+    searchParams.set("genre", genre);
+  }
+
+  if (season) {
+    searchParams.set("season", season);
+  }
 
   const response = await getBrowserFetch()(
     `${getShikimoriApiBaseUrl()}/animes?${searchParams.toString()}`,
