@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { AnimeComments } from "@/components/shared/AnimeComments";
 import { InteractivePlayer } from "@/components/shared/InteractivePlayer";
 import { WatchlistDropdown } from "@/components/shared/watchlist-dropdown";
 import type { WatchHistoryItem } from "@/lib/watch-history";
@@ -18,11 +19,22 @@ interface WatchAreaProps {
   malId: number;
   seasonLinks: WatchAreaSeasonLink[];
   history: WatchAreaHistory | null;
+  episodesTotal: number | null;
+  progress: {
+    episodesWatched: number;
+    lastTime: number;
+  } | null;
 }
 
 type WatchAreaHistory = Pick<WatchHistoryItem, "id" | "name" | "image">;
 
-export function WatchArea({ malId, seasonLinks, history }: WatchAreaProps) {
+export function WatchArea({
+  malId,
+  seasonLinks,
+  history,
+  episodesTotal,
+  progress,
+}: WatchAreaProps) {
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -78,7 +90,14 @@ export function WatchArea({ malId, seasonLinks, history }: WatchAreaProps) {
         </div>
       </div>
 
-      <InteractivePlayer malId={malId} history={history} />
+      <InteractivePlayer
+        malId={malId}
+        history={history}
+        episodesTotal={episodesTotal}
+        progress={progress}
+      />
+
+      <AnimeComments animeId={malId} />
     </section>
   );
 }

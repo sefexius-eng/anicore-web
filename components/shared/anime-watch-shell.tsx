@@ -8,7 +8,12 @@ import type { WatchHistoryItem } from "@/lib/watch-history";
 interface AnimeWatchShellProps {
   animeId: number;
   animeTitle: string;
+  episodesTotal: number | null;
   history: Pick<WatchHistoryItem, "id" | "name" | "image"> | null;
+  progress: {
+    episodesWatched: number;
+    lastTime: number;
+  } | null;
 }
 
 interface AnimeFranchiseSeasonItem {
@@ -83,7 +88,9 @@ function filterFranchiseSeasons(
 export function AnimeWatchShell({
   animeId,
   animeTitle,
+  episodesTotal,
   history,
+  progress,
 }: AnimeWatchShellProps) {
   const [franchiseSeasons, setFranchiseSeasons] = useState<
     AnimeFranchiseSeasonItem[]
@@ -135,5 +142,13 @@ export function AnimeWatchShell({
     return buildFranchiseSeasonLinks(animeId, filteredFranchise);
   }, [animeId, animeTitle, franchiseSeasons]);
 
-  return <WatchArea malId={animeId} seasonLinks={seasonLinks} history={history} />;
+  return (
+    <WatchArea
+      malId={animeId}
+      seasonLinks={seasonLinks}
+      history={history}
+      episodesTotal={episodesTotal}
+      progress={progress}
+    />
+  );
 }

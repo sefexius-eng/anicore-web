@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   getDubPriority,
@@ -18,6 +18,8 @@ import {
 interface InteractivePlayerProps {
   malId: number;
   history: InteractivePlayerHistory | null;
+  episodesTotal: number | null;
+  progress: InteractivePlayerProgress | null;
 }
 
 interface KodikPlayerResponse {
@@ -27,6 +29,25 @@ interface KodikPlayerResponse {
   error?: string;
 }
 
+interface InteractivePlayerProgress {
+  episodesWatched: number;
+  lastTime: number;
+}
+
+interface PlayerBridgePayload {
+  key?: unknown;
+  value?: unknown;
+  event?: unknown;
+  time?: unknown;
+  currentTime?: unknown;
+  duration?: unknown;
+  durationSeconds?: unknown;
+  episode?: unknown;
+  episodeNumber?: unknown;
+  currentEpisode?: unknown;
+  number?: unknown;
+}
+
 type InteractivePlayerHistory = Pick<WatchHistoryItem, "id" | "name" | "image">;
 
 const IFRAME_HISTORY_SAVE_GAP_SECONDS = Math.max(
@@ -34,6 +55,7 @@ const IFRAME_HISTORY_SAVE_GAP_SECONDS = Math.max(
   Math.floor(WATCH_HISTORY_SAVE_THROTTLE_MS / 1000),
 );
 const DATABASE_HISTORY_SAVE_GAP_SECONDS = 20;
+const WATCHED_EPISODE_PROGRESS_THRESHOLD = 0.8;
 
 function isTranslationOption(value: unknown): value is TranslationOption {
   if (typeof value !== "object" || value === null) {
@@ -55,14 +77,190 @@ function normalizeKodikPlayerLink(link: string): string {
     : `https:${link}`;
 }
 
-function buildKodikIframeSrc(link: string): string {
+function normalizePositiveInteger(value: unknown): number | null {
+  const numericValue =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+
+  if (!Number.isFinite(numericValue)) {
+    return null;
+  }
+
+  const normalizedValue = Math.floor(numericValue);
+  return normalizedValue > 0 ? normalizedValue : null;
+}
+
+function normalizeNonNegativeNumber(value: unknown): number | null {
+  const numericValue =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+
+  if (!Number.isFinite(numericValue)) {
+    return null;
+  }
+
+  return Math.max(0, numericValue);
+}
+
+function clampEpisodeNumber(
+  episodeNumber: number,
+  episodesTotal: number | null,
+): number {
+  const normalizedEpisode = Math.max(1, Math.floor(episodeNumber));
+
+  if (
+    typeof episodesTotal === "number" &&
+    Number.isFinite(episodesTotal) &&
+    episodesTotal > 0
+  ) {
+    return Math.min(normalizedEpisode, Math.floor(episodesTotal));
+  }
+
+  return normalizedEpisode;
+}
+
+function buildKodikIframeSrc(
+  link: string,
+  episodeNumber: number,
+  startFromSeconds = 0,
+): string {
   const url = new URL(normalizeKodikPlayerLink(link));
   url.searchParams.set("translations", "false");
+  url.searchParams.set("episode", String(Math.max(1, Math.floor(episodeNumber))));
+
+  if (startFromSeconds > 0) {
+    url.searchParams.set("start_from", String(Math.floor(startFromSeconds)));
+  } else {
+    url.searchParams.delete("start_from");
+  }
+
   return url.toString();
 }
 
-export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
-  const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+function parseBridgePayload(data: unknown): PlayerBridgePayload | null {
+  if (typeof data === "string") {
+    try {
+      const parsedData = JSON.parse(data) as unknown;
+      return typeof parsedData === "object" && parsedData !== null
+        ? (parsedData as PlayerBridgePayload)
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof data === "object" && data !== null) {
+    return data as PlayerBridgePayload;
+  }
+
+  return null;
+}
+
+function extractEpisodeNumber(payload: PlayerBridgePayload): number | null {
+  const directEpisodeNumber =
+    normalizePositiveInteger(payload.episodeNumber) ??
+    normalizePositiveInteger(payload.currentEpisode) ??
+    normalizePositiveInteger(payload.episode) ??
+    normalizePositiveInteger(payload.number);
+
+  if (directEpisodeNumber) {
+    return directEpisodeNumber;
+  }
+
+  if (
+    typeof payload.key === "string" &&
+    payload.key.toLowerCase().includes("episode")
+  ) {
+    if (typeof payload.value === "object" && payload.value !== null) {
+      const nestedValue = payload.value as PlayerBridgePayload;
+
+      return (
+        normalizePositiveInteger(nestedValue.episodeNumber) ??
+        normalizePositiveInteger(nestedValue.currentEpisode) ??
+        normalizePositiveInteger(nestedValue.episode) ??
+        normalizePositiveInteger(nestedValue.number)
+      );
+    }
+
+    return normalizePositiveInteger(payload.value);
+  }
+
+  return null;
+}
+
+function extractDurationSeconds(payload: PlayerBridgePayload): number | null {
+  const directDuration =
+    normalizeNonNegativeNumber(payload.duration) ??
+    normalizeNonNegativeNumber(payload.durationSeconds);
+
+  if (directDuration !== null && directDuration > 0) {
+    return directDuration;
+  }
+
+  if (
+    typeof payload.key === "string" &&
+    payload.key.toLowerCase().includes("duration")
+  ) {
+    if (typeof payload.value === "object" && payload.value !== null) {
+      const nestedValue = payload.value as PlayerBridgePayload;
+
+      return (
+        normalizeNonNegativeNumber(nestedValue.duration) ??
+        normalizeNonNegativeNumber(nestedValue.durationSeconds)
+      );
+    }
+
+    return normalizeNonNegativeNumber(payload.value);
+  }
+
+  return null;
+}
+
+function extractCurrentTimeSeconds(payload: PlayerBridgePayload): number | null {
+  if (payload.key === "kodik_player_time_update") {
+    return normalizeNonNegativeNumber(payload.value);
+  }
+
+  const directTime =
+    normalizeNonNegativeNumber(payload.currentTime) ??
+    normalizeNonNegativeNumber(payload.time);
+
+  if (directTime !== null) {
+    return directTime;
+  }
+
+  if (typeof payload.value === "object" && payload.value !== null) {
+    const nestedValue = payload.value as PlayerBridgePayload;
+
+    return (
+      normalizeNonNegativeNumber(nestedValue.currentTime) ??
+      normalizeNonNegativeNumber(nestedValue.time)
+    );
+  }
+
+  return null;
+}
+
+export function InteractivePlayer({
+  malId,
+  history,
+  episodesTotal,
+  progress,
+}: InteractivePlayerProps) {
+  const initialCompletedEpisodes = progress?.episodesWatched ?? 0;
+  const initialEpisodeNumber = clampEpisodeNumber(
+    initialCompletedEpisodes + 1,
+    episodesTotal,
+  );
+  const initialStartFromSeconds = progress?.lastTime ?? 0;
+
+  const [playerLink, setPlayerLink] = useState<string | null>(null);
   const [translations, setTranslations] = useState<TranslationOption[]>([]);
   const [activeTranslationId, setActiveTranslationId] = useState<number | null>(
     null,
@@ -71,23 +269,62 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
     useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [currentEpisodeNumber, setCurrentEpisodeNumber] = useState(
+    initialEpisodeNumber,
+  );
+  const [startFromSeconds, setStartFromSeconds] = useState(
+    initialStartFromSeconds,
+  );
 
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastSavedTimeRef = useRef(0);
   const lastDatabaseSavedTimeRef = useRef(0);
   const historyRef = useRef<InteractivePlayerHistory | null>(history);
+  const currentEpisodeRef = useRef(initialEpisodeNumber);
+  const completedEpisodesRef = useRef(initialCompletedEpisodes);
+  const currentTimeRef = useRef(initialStartFromSeconds);
+  const durationSecondsRef = useRef(0);
+
+  const iframeSrc = useMemo(() => {
+    if (!playerLink) {
+      return null;
+    }
+
+    return buildKodikIframeSrc(
+      playerLink,
+      currentEpisodeNumber,
+      startFromSeconds,
+    );
+  }, [currentEpisodeNumber, playerLink, startFromSeconds]);
 
   useEffect(() => {
     historyRef.current = history;
   }, [history]);
 
   useEffect(() => {
+    const clampedEpisodeNumber = clampEpisodeNumber(
+      currentEpisodeRef.current,
+      episodesTotal,
+    );
+
+    if (clampedEpisodeNumber === currentEpisodeRef.current) {
+      return;
+    }
+
+    currentEpisodeRef.current = clampedEpisodeNumber;
+    setCurrentEpisodeNumber(clampedEpisodeNumber);
+  }, [episodesTotal]);
+
+  useEffect(() => {
     lastSavedTimeRef.current = 0;
     lastDatabaseSavedTimeRef.current = 0;
-  }, [history?.id, iframeSrc]);
+    currentTimeRef.current = startFromSeconds;
+    durationSecondsRef.current = 0;
+  }, [history?.id, iframeSrc, startFromSeconds]);
 
   const syncHistoryToDatabase = useCallback(
-    async (animeId: number, currentTime: number) => {
+    async (animeId: number, currentTime: number, episodeNumber?: number) => {
       await fetch("/api/history", {
         method: "POST",
         headers: {
@@ -98,10 +335,55 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
         body: JSON.stringify({
           animeId,
           time: currentTime,
+          ...(typeof episodeNumber === "number" ? { episodeNumber } : {}),
         }),
       });
     },
     [],
+  );
+
+  const markEpisodeAsWatched = useCallback(
+    (episodeNumber: number, currentTime: number) => {
+      const currentHistory = historyRef.current;
+
+      if (!currentHistory || episodeNumber <= completedEpisodesRef.current) {
+        return;
+      }
+
+      completedEpisodesRef.current = episodeNumber;
+      lastDatabaseSavedTimeRef.current = currentTime;
+
+      void syncHistoryToDatabase(
+        currentHistory.id,
+        Math.max(0, Math.floor(currentTime)),
+        episodeNumber,
+      ).catch(() => undefined);
+    },
+    [syncHistoryToDatabase],
+  );
+
+  const handleEpisodeChange = useCallback(
+    (rawEpisodeNumber: number) => {
+      const nextEpisodeNumber = clampEpisodeNumber(rawEpisodeNumber, episodesTotal);
+      const previousEpisodeNumber = currentEpisodeRef.current;
+
+      if (nextEpisodeNumber === previousEpisodeNumber) {
+        return;
+      }
+
+      if (nextEpisodeNumber > previousEpisodeNumber) {
+        markEpisodeAsWatched(previousEpisodeNumber, currentTimeRef.current);
+      }
+
+      currentEpisodeRef.current = nextEpisodeNumber;
+      setCurrentEpisodeNumber(nextEpisodeNumber);
+      setStartFromSeconds(0);
+      currentTimeRef.current = 0;
+      durationSecondsRef.current = 0;
+      lastSavedTimeRef.current = 0;
+      lastDatabaseSavedTimeRef.current = 0;
+    },
+    [episodesTotal, markEpisodeAsWatched],
   );
 
   const loadPlayer = useCallback(
@@ -112,7 +394,7 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
 
       setIsLoading(true);
       setErrorMessage(null);
-      setIframeSrc(null);
+      setPlayerLink(null);
 
       if (translationId === null) {
         setTranslations([]);
@@ -158,7 +440,7 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
 
         setTranslations(availableTranslations);
         setActiveTranslationId(resolvedActiveTranslationId);
-        setIframeSrc(buildKodikIframeSrc(data.link));
+        setPlayerLink(data.link);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -169,7 +451,7 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
             ? error.message
             : "Не удалось загрузить плеер Kodik.",
         );
-        setIframeSrc(null);
+        setPlayerLink(null);
       } finally {
         if (
           abortControllerRef.current === controller &&
@@ -194,67 +476,83 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent<unknown>) => {
-      const payload =
-        typeof event.data === "object" && event.data !== null
-          ? (event.data as { key?: unknown; value?: unknown })
-          : null;
+      const iframeWindow = iframeRef.current?.contentWindow;
 
-      if (payload?.key !== "kodik_player_time_update") {
+      if (iframeWindow && event.source !== iframeWindow) {
         return;
+      }
+
+      const payload = parseBridgePayload(event.data);
+
+      if (!payload) {
+        return;
+      }
+
+      const nextEpisodeNumber = extractEpisodeNumber(payload);
+
+      if (
+        typeof nextEpisodeNumber === "number" &&
+        nextEpisodeNumber !== currentEpisodeRef.current
+      ) {
+        handleEpisodeChange(nextEpisodeNumber);
+      }
+
+      const durationSeconds = extractDurationSeconds(payload);
+
+      if (durationSeconds !== null && durationSeconds > 0) {
+        durationSecondsRef.current = durationSeconds;
       }
 
       const currentHistory = historyRef.current;
+      const currentTime = extractCurrentTimeSeconds(payload);
 
-      if (!currentHistory) {
+      if (!currentHistory || currentTime === null) {
         return;
       }
 
-      const rawCurrentTime = payload.value;
-      const numericCurrentTime =
-        typeof rawCurrentTime === "number"
-          ? rawCurrentTime
-          : typeof rawCurrentTime === "string"
-            ? Number(rawCurrentTime)
-            : Number.NaN;
+      const normalizedCurrentTime = Math.max(0, Math.floor(currentTime));
+      currentTimeRef.current = normalizedCurrentTime;
 
-      if (!Number.isFinite(numericCurrentTime)) {
-        return;
-      }
-
-      const currentTime = Math.max(0, Math.floor(numericCurrentTime));
-
-      if (currentTime <= WATCH_HISTORY_MIN_SAVE_SECONDS) {
+      if (normalizedCurrentTime <= WATCH_HISTORY_MIN_SAVE_SECONDS) {
         return;
       }
 
       if (
-        Math.abs(currentTime - lastSavedTimeRef.current) <=
+        Math.abs(normalizedCurrentTime - lastSavedTimeRef.current) <=
         IFRAME_HISTORY_SAVE_GAP_SECONDS
       ) {
         return;
       }
 
-      lastSavedTimeRef.current = currentTime;
+      lastSavedTimeRef.current = normalizedCurrentTime;
 
       addToWatchHistory({
         id: currentHistory.id,
         name: currentHistory.name,
         image: currentHistory.image,
         timestamp: Date.now(),
-        stoppedAt: currentTime,
+        stoppedAt: normalizedCurrentTime,
       });
 
       if (
-        Math.abs(currentTime - lastDatabaseSavedTimeRef.current) <
+        Math.abs(normalizedCurrentTime - lastDatabaseSavedTimeRef.current) >=
         DATABASE_HISTORY_SAVE_GAP_SECONDS
       ) {
-        return;
+        lastDatabaseSavedTimeRef.current = normalizedCurrentTime;
+        void syncHistoryToDatabase(
+          currentHistory.id,
+          normalizedCurrentTime,
+        ).catch(() => undefined);
       }
 
-      lastDatabaseSavedTimeRef.current = currentTime;
-      void syncHistoryToDatabase(currentHistory.id, currentTime).catch(
-        () => undefined,
-      );
+      if (
+        durationSecondsRef.current > 0 &&
+        currentEpisodeRef.current > completedEpisodesRef.current &&
+        normalizedCurrentTime / durationSecondsRef.current >=
+          WATCHED_EPISODE_PROGRESS_THRESHOLD
+      ) {
+        markEpisodeAsWatched(currentEpisodeRef.current, normalizedCurrentTime);
+      }
     };
 
     window.addEventListener("message", handleMessage);
@@ -262,10 +560,11 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [syncHistoryToDatabase]);
+  }, [handleEpisodeChange, markEpisodeAsWatched, syncHistoryToDatabase]);
 
   const handleTranslationSelect = useCallback(
     (translationId: number) => {
+      setStartFromSeconds(currentTimeRef.current);
       setActiveTranslationId(translationId);
       setIsTranslationSidebarOpen(false);
       void loadPlayer(translationId);
@@ -277,20 +576,56 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
     translations.find((translation) => translation.id === activeTranslationId) ??
     null;
   const ambientImageUrl = history?.image?.trim() || "";
+  const canGoToPreviousEpisode = currentEpisodeNumber > 1;
+  const canGoToNextEpisode =
+    typeof episodesTotal === "number" && Number.isFinite(episodesTotal)
+      ? currentEpisodeNumber < episodesTotal
+      : true;
 
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800"
-          onClick={() => setIsTranslationSidebarOpen(true)}
-        >
-          {activeTranslation
-            ? `Озвучка: ${activeTranslation.title}`
-            : "Выбрать озвучку"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800"
+            onClick={() => setIsTranslationSidebarOpen(true)}
+          >
+            {activeTranslation
+              ? `Озвучка: ${activeTranslation.title}`
+              : "Выбрать озвучку"}
+          </Button>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800 disabled:opacity-50"
+              onClick={() => handleEpisodeChange(currentEpisodeNumber - 1)}
+              disabled={!playerLink || !canGoToPreviousEpisode}
+            >
+              Пред.
+            </Button>
+
+            <span className="rounded-full border border-neutral-700 bg-neutral-950/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-neutral-300">
+              Серия {currentEpisodeNumber}
+              {typeof episodesTotal === "number" && episodesTotal > 0
+                ? ` / ${episodesTotal}`
+                : ""}
+            </span>
+
+            <Button
+              type="button"
+              variant="secondary"
+              className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800 disabled:opacity-50"
+              onClick={() => handleEpisodeChange(currentEpisodeNumber + 1)}
+              disabled={!playerLink || !canGoToNextEpisode}
+            >
+              След.
+            </Button>
+          </div>
+        </div>
 
         <p className="text-xs text-muted-foreground">
           {isLoading
@@ -324,7 +659,8 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
         <div className="relative z-10 w-full aspect-video overflow-hidden rounded-xl border border-white/5 bg-black shadow-2xl sm:rounded-2xl">
           {iframeSrc ? (
             <iframe
-              key={activeTranslationId ?? malId}
+              key={`${activeTranslationId ?? malId}-${currentEpisodeNumber}-${startFromSeconds}`}
+              ref={iframeRef}
               src={iframeSrc}
               title="Kodik player"
               width="100%"

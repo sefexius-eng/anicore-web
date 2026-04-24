@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 
 import { AnimeWatchShell } from "@/components/shared/anime-watch-shell";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { getImageUrl } from "@/lib/utils";
 
 const ANIME_REVALIDATE_SECONDS = 60 * 60;
@@ -19,6 +21,7 @@ interface AnimeEntry {
   russian?: string | null;
   title?: string | null;
   description?: string | null;
+  episodes?: number | null;
   score?: string | number | null;
   image?: {
     original?: string | null;
@@ -37,8 +40,14 @@ interface AnimeDetailsItem {
   id: number;
   title: string;
   description: string;
+  episodes: number | null;
   image_url: string;
   score: number | null;
+}
+
+interface AnimeWatchProgress {
+  episodesWatched: number;
+  lastTime: number;
 }
 
 function getRouteAnimeId(value: string | string[] | undefined): number {
@@ -111,6 +120,10 @@ const getAnimeDetails = cache(async (animeId: number): Promise<AnimeDetailsItem>
     id: anime.id,
     title: getBestTitle(anime) || `Anime #${animeId}`,
     description: cleanDescription(anime.description?.trim() || ""),
+    episodes:
+      typeof anime.episodes === "number" && Number.isFinite(anime.episodes)
+        ? anime.episodes
+        : null,
     image_url: getImageUrl(anime.image ?? null),
     score: getScore(anime.score),
   };
@@ -161,6 +174,32 @@ async function getAnimeDetailsSafely(animeId: number) {
   }
 }
 
+async function getAnimeWatchProgress(
+  animeId: number,
+): Promise<AnimeWatchProgress | null> {
+  const session = await auth();
+  const userId = Number(session?.user?.id ?? Number.NaN);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return null;
+  }
+
+  const historyEntry = await prisma.watchHistory.findUnique({
+    where: {
+      userId_animeId: {
+        userId,
+        animeId,
+      },
+    },
+    select: {
+      episodesWatched: true,
+      lastTime: true,
+    },
+  });
+
+  return historyEntry ?? null;
+}
+
 function AnimeSectionFallback({ label }: { label: string }) {
   return (
     <section className="rounded-3xl border border-border/60 bg-card/70 p-5 shadow-2xl backdrop-blur-sm sm:p-6">
@@ -180,7 +219,10 @@ function AnimeSectionError({ label }: { label: string }) {
 }
 
 async function AnimeWatchBlock({ animeId }: { animeId: number }) {
-  const anime = await getAnimeDetailsSafely(animeId);
+  const [anime, progress] = await Promise.all([
+    getAnimeDetailsSafely(animeId),
+    getAnimeWatchProgress(animeId),
+  ]);
 
   if (!anime) {
     return <AnimeSectionError label="Не удалось загрузить блок просмотра." />;
@@ -191,11 +233,13 @@ async function AnimeWatchBlock({ animeId }: { animeId: number }) {
       <AnimeWatchShell
         animeId={animeId}
         animeTitle={anime.title}
+        episodesTotal={anime.episodes}
         history={{
           id: anime.id,
           name: anime.title,
           image: anime.image_url,
         }}
+        progress={progress}
       />
     </section>
   );

@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 interface HistoryRequestBody {
   animeId?: unknown;
   time?: unknown;
+  episodeNumber?: unknown;
 }
 
 function hasOwnProperty(value: object, key: string) {
@@ -41,13 +42,29 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as HistoryRequestBody | null;
   const animeId = normalizeInteger(body?.animeId);
   const time = normalizeInteger(body?.time);
+  const episodeNumber =
+    typeof body?.episodeNumber === "undefined"
+      ? undefined
+      : normalizeInteger(body.episodeNumber);
 
-  if (!animeId || time === null) {
+  if (!animeId || time === null || episodeNumber === null) {
     return NextResponse.json(
       { error: "Invalid history payload." },
       { status: 400 },
     );
   }
+
+  const existingHistory = await prisma.watchHistory.findUnique({
+    where: {
+      userId_animeId: {
+        userId,
+        animeId,
+      },
+    },
+    select: {
+      episodesWatched: true,
+    },
+  });
 
   await prisma.watchHistory.upsert({
     where: {
@@ -58,16 +75,25 @@ export async function POST(request: Request) {
     },
     update: {
       lastTime: time,
+      ...(typeof episodeNumber === "number"
+        ? {
+            episodesWatched: Math.max(
+              existingHistory?.episodesWatched ?? 0,
+              episodeNumber,
+            ),
+          }
+        : {}),
     },
     create: {
       userId,
       animeId,
       lastTime: time,
-      episodesWatched: 0,
+      episodesWatched: episodeNumber ?? 0,
     },
   });
 
   revalidatePath("/");
+  revalidatePath(`/anime/${animeId}`);
   revalidatePath("/profile");
 
   return NextResponse.json({ success: true });
