@@ -96,6 +96,7 @@ export function AvatarUpload({
       }
 
       setStatusMessage("Аватар обновлен.");
+      window.dispatchEvent(new Event("anicore:user-avatar-updated"));
       router.refresh();
     } catch (error) {
       setPreviewSrc(currentImage || AVATAR_PLACEHOLDER);
