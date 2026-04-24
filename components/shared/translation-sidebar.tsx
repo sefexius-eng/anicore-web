@@ -19,6 +19,21 @@ export interface TranslationOption {
   type: TranslationType;
 }
 
+export const TOP_DUBS = [
+  "AniLibria.TV",
+  "Studio Band",
+  "SHIZA Project",
+  "AniStar & DEEP",
+  "Jam Club",
+  "AniDUB",
+] as const;
+
+export function getDubPriority(title: string): number {
+  const index = TOP_DUBS.findIndex((dub) => title.includes(dub));
+
+  return index === -1 ? 999 : index;
+}
+
 interface TranslationSidebarProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -63,24 +78,38 @@ export function TranslationSidebar({
         <div className="flex-1 overflow-y-auto p-4">
           {translations.length > 0 ? (
             <div className="space-y-2">
-              {translations.map((translation) => (
-                <button
-                  key={`${translation.type}-${translation.id}-${translation.title}`}
-                  type="button"
-                  onClick={() => onSelectTranslation(translation.id)}
-                  className={cn(
-                    "w-full rounded-xl border px-4 py-3 text-left transition-colors",
-                    activeTranslationId === translation.id
-                      ? "border-cyan-400 bg-cyan-500/15 text-white"
-                      : "border-neutral-800 bg-neutral-950/80 text-neutral-200 hover:border-neutral-600 hover:bg-neutral-800/80",
-                  )}
-                >
-                  <p className="text-sm font-medium leading-tight">{translation.title}</p>
-                  <p className="mt-1 text-[0.65rem] font-semibold tracking-[0.14em] uppercase text-neutral-400">
-                    {translation.type === "voice" ? "Озвучка" : "Субтитры"}
-                  </p>
-                </button>
-              ))}
+              {translations.map((translation, index) => {
+                const isRecommended =
+                  index === 0 && getDubPriority(translation.title) !== 999;
+
+                return (
+                  <button
+                    key={`${translation.type}-${translation.id}-${translation.title}`}
+                    type="button"
+                    onClick={() => onSelectTranslation(translation.id)}
+                    className={cn(
+                      "w-full rounded-xl border px-4 py-3 text-left transition-colors",
+                      activeTranslationId === translation.id
+                        ? "border-cyan-400 bg-cyan-500/15 text-white"
+                        : "border-neutral-800 bg-neutral-950/80 text-neutral-200 hover:border-neutral-600 hover:bg-neutral-800/80",
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium leading-tight">
+                        {translation.title}
+                      </p>
+                      {isRecommended ? (
+                        <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                          Рекомендуем
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-neutral-400">
+                      {translation.type === "voice" ? "Озвучка" : "Субтитры"}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-4 text-sm text-neutral-400">

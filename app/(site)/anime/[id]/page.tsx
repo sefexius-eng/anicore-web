@@ -26,6 +26,10 @@ interface AnimeFranchiseSeasonItem {
   title: string;
 }
 
+function buildTitlePrefix(title: string): string {
+  return title.trim().split(/\s+/)[0]?.substring(0, 5).toLowerCase() ?? "";
+}
+
 function cleanShikimoriText(text: string): string {
   return text.replace(/\[[^\]]+\]/g, "").trim();
 }
@@ -59,6 +63,42 @@ function buildFranchiseSeasonLinks(
 function getRouteAnimeId(value: string | string[] | undefined): number {
   const rawId = Array.isArray(value) ? value[0] : value;
   return Number(rawId);
+}
+
+function filterFranchiseSeasons(
+  currentMalId: number,
+  currentAnimeTitle: string,
+  franchiseSeasons: AnimeFranchiseSeasonItem[],
+): AnimeFranchiseSeasonItem[] {
+  const currentPrefix = buildTitlePrefix(currentAnimeTitle);
+
+  if (!currentPrefix) {
+    return franchiseSeasons;
+  }
+
+  const normalizedCurrentTitle = currentAnimeTitle.toLowerCase();
+  const filteredFranchise = franchiseSeasons.filter((item) => {
+    if (item.id === currentMalId) {
+      return true;
+    }
+
+    const itemPrefix = buildTitlePrefix(item.title);
+
+    if (!itemPrefix) {
+      return false;
+    }
+
+    return (
+      item.title.toLowerCase().includes(currentPrefix) ||
+      normalizedCurrentTitle.includes(itemPrefix)
+    );
+  });
+
+  if (filteredFranchise.length > 0) {
+    return filteredFranchise;
+  }
+
+  return franchiseSeasons.filter((item) => item.id === currentMalId);
 }
 
 export default function AnimePage() {
@@ -149,8 +189,12 @@ export default function AnimePage() {
       return [];
     }
 
-    return buildFranchiseSeasonLinks(numericId, franchiseSeasons);
-  }, [franchiseSeasons, isValidAnimeId, numericId]);
+    const filteredFranchise = anime
+      ? filterFranchiseSeasons(numericId, anime.title, franchiseSeasons)
+      : franchiseSeasons;
+
+    return buildFranchiseSeasonLinks(numericId, filteredFranchise);
+  }, [anime, franchiseSeasons, isValidAnimeId, numericId]);
 
   if (isLoading) {
     return (

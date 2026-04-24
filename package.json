@@ -27,6 +27,7 @@
     "maverick.js": "^0.37.0",
     "next": "16.2.4",
     "next-auth": "^4.24.14",
+    "nextjs-toploader": "^3.9.17",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "shadcn": "^4.3.1",

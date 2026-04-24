@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
+  getDubPriority,
   type TranslationOption,
   TranslationSidebar,
 } from "@/components/shared/translation-sidebar";
@@ -134,7 +135,12 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
         }
 
         const availableTranslations = Array.isArray(data.translations)
-          ? data.translations.filter(isTranslationOption)
+          ? data.translations
+              .filter(isTranslationOption)
+              .sort(
+                (left, right) =>
+                  getDubPriority(left.title) - getDubPriority(right.title),
+              )
           : [];
 
         const resolvedActiveTranslationId =
