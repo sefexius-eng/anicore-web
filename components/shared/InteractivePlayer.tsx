@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import {
   getDubPriority,
   type TranslationOption,
   TranslationSidebar,
 } from "@/components/shared/translation-sidebar";
+import { Button } from "@/components/ui/button";
 import {
   addToWatchHistory,
   WATCH_HISTORY_MIN_SAVE_SECONDS,
@@ -50,7 +50,9 @@ function isTranslationOption(value: unknown): value is TranslationOption {
 }
 
 function normalizeKodikPlayerLink(link: string): string {
-  return link.startsWith("http://") || link.startsWith("https://") ? link : `https:${link}`;
+  return link.startsWith("http://") || link.startsWith("https://")
+    ? link
+    : `https:${link}`;
 }
 
 function buildKodikIframeSrc(link: string): string {
@@ -62,8 +64,11 @@ function buildKodikIframeSrc(link: string): string {
 export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [translations, setTranslations] = useState<TranslationOption[]>([]);
-  const [activeTranslationId, setActiveTranslationId] = useState<number | null>(null);
-  const [isTranslationSidebarOpen, setIsTranslationSidebarOpen] = useState(false);
+  const [activeTranslationId, setActiveTranslationId] = useState<number | null>(
+    null,
+  );
+  const [isTranslationSidebarOpen, setIsTranslationSidebarOpen] =
+    useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -131,7 +136,10 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
         const data = (await response.json()) as KodikPlayerResponse;
 
         if (!response.ok || !data.link) {
-          throw new Error(data.error ?? `Kodik proxy request failed with status ${response.status}.`);
+          throw new Error(
+            data.error ??
+              `Kodik proxy request failed with status ${response.status}.`,
+          );
         }
 
         const availableTranslations = Array.isArray(data.translations)
@@ -157,11 +165,16 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
         }
 
         setErrorMessage(
-          error instanceof Error ? error.message : "Не удалось загрузить плеер Kodik.",
+          error instanceof Error
+            ? error.message
+            : "Не удалось загрузить плеер Kodik.",
         );
         setIframeSrc(null);
       } finally {
-        if (abortControllerRef.current === controller && !controller.signal.aborted) {
+        if (
+          abortControllerRef.current === controller &&
+          !controller.signal.aborted
+        ) {
           setIsLoading(false);
         }
       }
@@ -261,7 +274,9 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
   );
 
   const activeTranslation =
-    translations.find((translation) => translation.id === activeTranslationId) ?? null;
+    translations.find((translation) => translation.id === activeTranslationId) ??
+    null;
+  const ambientImageUrl = history?.image?.trim() || "";
 
   return (
     <section className="space-y-4">
@@ -272,7 +287,9 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
           className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800"
           onClick={() => setIsTranslationSidebarOpen(true)}
         >
-          {activeTranslation ? `Озвучка: ${activeTranslation.title}` : "Выбрать озвучку"}
+          {activeTranslation
+            ? `Озвучка: ${activeTranslation.title}`
+            : "Выбрать озвучку"}
         </Button>
 
         <p className="text-xs text-muted-foreground">
@@ -284,23 +301,47 @@ export function InteractivePlayer({ malId, history }: InteractivePlayerProps) {
         </p>
       </div>
 
-      <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border/60 bg-black">
-        {iframeSrc ? (
-          <iframe
-            key={activeTranslationId ?? malId}
-            src={iframeSrc}
-            title="Kodik player"
-            width="100%"
-            height="100%"
-            frameBorder="0"
-            allow="autoplay; fullscreen"
-            allowFullScreen
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center p-6 text-sm text-muted-foreground">
-            {isLoading ? "Загрузка плеера..." : errorMessage ?? "Плеер не найден."}
-          </div>
-        )}
+      <div className="relative w-full group">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-4 z-0 rounded-[2rem] opacity-40 mix-blend-screen blur-[60px] transition-opacity duration-1000 group-hover:opacity-60 sm:-inset-6 sm:blur-[100px]"
+          style={
+            ambientImageUrl
+              ? {
+                  backgroundImage: `url(${ambientImageUrl})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  transform: "translateZ(0)",
+                }
+              : {
+                  background:
+                    "radial-gradient(circle at center, rgba(56,189,248,0.25), rgba(15,23,42,0) 72%)",
+                  transform: "translateZ(0)",
+                }
+          }
+        />
+
+        <div className="relative z-10 w-full aspect-video overflow-hidden rounded-xl border border-white/5 bg-black shadow-2xl sm:rounded-2xl">
+          {iframeSrc ? (
+            <iframe
+              key={activeTranslationId ?? malId}
+              src={iframeSrc}
+              title="Kodik player"
+              width="100%"
+              height="100%"
+              frameBorder="0"
+              allow="autoplay; fullscreen"
+              allowFullScreen
+              className="h-full w-full"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center p-6 text-sm text-muted-foreground">
+              {isLoading
+                ? "Загрузка плеера..."
+                : errorMessage ?? "Плеер не найден."}
+            </div>
+          )}
+        </div>
       </div>
 
       <TranslationSidebar
