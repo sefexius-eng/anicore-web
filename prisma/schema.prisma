@@ -17,9 +17,11 @@ model User {
   birthDate    DateTime
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  achievements UserAchievement[]
   comments     Comment[]
   followers    Follows[]      @relation("following")
   following    Follows[]      @relation("follower")
+  reviews      Review[]
   watchHistory WatchHistory[]
   watchlists   Watchlist[]
 }
@@ -44,6 +46,28 @@ model Comment {
 
   @@index([animeId, createdAt])
   @@index([userId, createdAt])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    Int
+  animeId   Int
+  rating    Int
+  text      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, animeId])
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        Int
+  achievementId String
+  unlockedAt    DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
 }
 
 model WatchHistory {

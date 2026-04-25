@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
+import { MARATHONER_ACHIEVEMENT_ID } from "@/lib/achievements";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -92,9 +93,32 @@ export async function POST(request: Request) {
     },
   });
 
+  const watchedTitlesCount = await prisma.watchHistory.count({
+    where: {
+      userId,
+    },
+  });
+
+  if (watchedTitlesCount > 10) {
+    await prisma.userAchievement.upsert({
+      where: {
+        userId_achievementId: {
+          userId,
+          achievementId: MARATHONER_ACHIEVEMENT_ID,
+        },
+      },
+      update: {},
+      create: {
+        userId,
+        achievementId: MARATHONER_ACHIEVEMENT_ID,
+      },
+    });
+  }
+
   revalidatePath("/");
   revalidatePath(`/anime/${animeId}`);
   revalidatePath("/profile");
+  revalidatePath(`/user/${userId}`);
 
   return NextResponse.json({ success: true });
 }
@@ -138,6 +162,7 @@ export async function DELETE(request: Request) {
 
   revalidatePath("/");
   revalidatePath("/profile");
+  revalidatePath(`/user/${userId}`);
 
   return NextResponse.json({ success: true });
 }

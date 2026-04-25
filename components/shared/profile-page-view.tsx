@@ -11,6 +11,7 @@ import {
 
 import { AnimeCard } from "@/components/shared/anime-card";
 import { AvatarUpload } from "@/components/shared/avatar-upload";
+import type { UserAchievementView } from "@/lib/achievements";
 import type { ProfileAnimeCardItem, ProfileViewData } from "@/lib/profile-data";
 
 function ProfileMetricCard({
@@ -82,6 +83,56 @@ function ProfileShelf({
       ) : (
         <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-10 text-center text-sm text-slate-400">
           Пока пусто.
+        </div>
+      )}
+    </section>
+  );
+}
+
+function formatAchievementDate(value: Date): string {
+  return new Intl.DateTimeFormat("ru-RU", {
+    dateStyle: "medium",
+  }).format(value);
+}
+
+function AchievementsShelf({ items }: { items: UserAchievementView[] }) {
+  return (
+    <section className="space-y-6 rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.32)] backdrop-blur-sm">
+      <div className="space-y-2">
+        <p className="text-xs uppercase tracking-[0.18em] text-sky-300">Награды</p>
+        <h2 className="text-2xl font-semibold tracking-tight text-white">
+          Достижения AniMirok
+        </h2>
+      </div>
+
+      {items.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {items.map((achievement) => (
+            <article
+              key={achievement.id}
+              title={achievement.description}
+              className={`rounded-3xl border bg-gradient-to-br p-5 shadow-[0_20px_50px_rgba(0,0,0,0.22)] backdrop-blur-sm ${achievement.toneClass}`}
+            >
+              <div className="space-y-3">
+                <div className="text-3xl">{achievement.emoji}</div>
+                <div className="space-y-1">
+                  <h3 className="text-lg font-semibold text-white">
+                    {achievement.title}
+                  </h3>
+                  <p className="text-sm leading-6 text-slate-300">
+                    {achievement.description}
+                  </p>
+                </div>
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                  Открыто {formatAchievementDate(achievement.unlockedAt)}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-10 text-center text-sm text-slate-400">
+          Пока без наград. Продолжайте смотреть тайтлы и открывать новые достижения.
         </div>
       )}
     </section>
@@ -215,6 +266,8 @@ export function ProfilePageView({
           </div>
         </div>
       </section>
+
+      <AchievementsShelf items={data.achievements} />
 
       <ProfileShelf
         eyebrow="История просмотров"

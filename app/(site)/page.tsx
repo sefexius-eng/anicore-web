@@ -11,6 +11,8 @@ const JIKAN_REVALIDATE_SECONDS = 60 * 60;
 const POPULAR_GRID_LIMIT = 8;
 const RECOMMENDATIONS_GRID_LIMIT = 12;
 const RECOMMENDATIONS_FETCH_LIMIT = 18;
+const USER_PICKS_GRID_LIMIT = 8;
+const USER_PICKS_FETCH_LIMIT = 18;
 
 interface JikanTitleEntry {
   type?: string;
@@ -205,6 +207,57 @@ async function getPopularAnime(): Promise<HomepageAnimeCardItem[]> {
     .filter((anime): anime is HomepageAnimeCardItem => anime !== null);
 }
 
+async function getAniMirokUserPicks(): Promise<HomepageAnimeCardItem[]> {
+  const recentHighReviews = await prisma.review.findMany({
+    where: {
+      rating: {
+        gte: 8,
+      },
+    },
+    orderBy: [
+      {
+        createdAt: "desc",
+      },
+      {
+        rating: "desc",
+      },
+    ],
+    take: USER_PICKS_FETCH_LIMIT,
+    select: {
+      animeId: true,
+      rating: true,
+    },
+  });
+
+  const uniqueHighReviews = recentHighReviews.filter(
+    (review, index, self) =>
+      index === self.findIndex((entry) => entry.animeId === review.animeId),
+  );
+
+  const picks = await Promise.all(
+    uniqueHighReviews.slice(0, USER_PICKS_GRID_LIMIT).map(async (review) => {
+      const payload = await fetchJikanJson<JikanAnimeResponse>(
+        `https://api.jikan.moe/v4/anime/${review.animeId}`,
+      );
+      const anime = payload?.data;
+      const title = getBestTitle(anime) || `Anime #${review.animeId}`;
+      const imageUrl = getImageUrl(anime?.images?.jpg?.large_image_url ?? null);
+
+      return {
+        id: review.animeId,
+        title,
+        image: {
+          original: imageUrl,
+        },
+        image_url: imageUrl,
+        score: review.rating,
+      };
+    }),
+  );
+
+  return picks;
+}
+
 function SectionFallback({ label }: { label: string }) {
   return (
     <div className="flex h-64 items-center justify-center rounded-3xl border border-border/60 bg-card/70 text-gray-500 shadow-2xl backdrop-blur-sm">
@@ -285,6 +338,29 @@ async function PopularBlock() {
   );
 }
 
+async function UserPicksBlock() {
+  const picks = await getAniMirokUserPicks();
+
+  if (picks.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="space-y-6">
+      <div className="space-y-2">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          Выбор пользователей AniMirok
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Тайтлы, которые пользователи AniMirok недавно оценили на 8/10 и выше.
+        </p>
+      </div>
+
+      <AnimeGrid items={picks} />
+    </section>
+  );
+}
+
 export default async function HomePage() {
   const session = await auth();
   const sessionUserId = Number(session?.user?.id ?? Number.NaN);
@@ -300,6 +376,10 @@ export default async function HomePage() {
           <RecommendationsBlock userId={sessionUserId} />
         </Suspense>
       ) : null}
+
+      <Suspense fallback={<SectionFallback label="Загрузка выбора пользователей..." />}>
+        <UserPicksBlock />
+      </Suspense>
     </div>
   );
 }

@@ -1,5 +1,9 @@
 import { cache } from "react";
 
+import {
+  toUserAchievementView,
+  type UserAchievementView,
+} from "@/lib/achievements";
 import { prisma } from "@/lib/prisma";
 import { getImageUrl } from "@/lib/utils";
 import { formatTime } from "@/lib/watch-history";
@@ -91,6 +95,7 @@ export interface ProfileViewData {
   timeSpentLabel: string;
   followersCount: number;
   followingCount: number;
+  achievements: UserAchievementView[];
   historyItems: ProfileAnimeCardItem[];
   watchlistSections: ProfileShelfData[];
   isOwnProfile: boolean;
@@ -257,6 +262,15 @@ export async function getProfileViewData(
           id: targetUserId,
         },
         select: {
+          achievements: {
+            orderBy: {
+              unlockedAt: "desc",
+            },
+            select: {
+              achievementId: true,
+              unlockedAt: true,
+            },
+          },
           id: true,
           name: true,
           image: true,
@@ -406,6 +420,9 @@ export async function getProfileViewData(
     timeSpentLabel,
     followersCount: user._count.followers,
     followingCount: user._count.following,
+    achievements: user.achievements.map((achievement) =>
+      toUserAchievementView(achievement.achievementId, achievement.unlockedAt),
+    ),
     historyItems,
     watchlistSections,
     isOwnProfile,

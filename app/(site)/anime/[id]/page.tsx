@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 
 import { AnimeComments } from "@/components/shared/AnimeComments";
+import { AnimeReviews } from "@/components/shared/AnimeReviews";
 import { AnimeWatchShell } from "@/components/shared/anime-watch-shell";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -317,6 +318,10 @@ export default async function AnimePage({ params }: AnimePageProps) {
 
       <div className="pt-8 sm:pt-10">
         <AnimeComments animeId={numericId} />
+      </div>
+
+      <div className="pt-8 sm:pt-10">
+        <AnimeReviews animeId={numericId} />
       </div>
     </section>
   );
