@@ -113,7 +113,7 @@ export function normalizePositiveInteger(value: unknown): number | null {
   return normalizedValue > 0 ? normalizedValue : null;
 }
 
-function buildAvatarFallback(userName: string): string {
+export function buildAvatarFallback(userName: string): string {
   const initials =
     userName
       .trim()
