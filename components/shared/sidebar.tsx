@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { House, Tv2, User, Users, type LucideIcon } from "lucide-react";
+import { History, House, Tv2, User, Users, type LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -32,6 +32,12 @@ const navigationItems: NavigationItem[] = [
     Icon: Users,
     isActive: (pathname) =>
       pathname.startsWith("/users") || pathname.startsWith("/user/"),
+  },
+  {
+    href: "/history",
+    label: "\u0418\u0441\u0442\u043e\u0440\u0438\u044f",
+    Icon: History,
+    isActive: (pathname) => pathname.startsWith("/history"),
   },
   {
     href: "/profile",

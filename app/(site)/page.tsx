@@ -8,8 +8,8 @@ import { getImageUrl } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 const JIKAN_REVALIDATE_SECONDS = 60 * 60;
-const HOME_GRID_LIMIT = 24;
-const HOME_FETCH_LIMIT = 30;
+const HOME_GRID_LIMIT = 18;
+const HOME_FETCH_LIMIT = 18;
 
 interface JikanTitleEntry {
   type?: string;
@@ -51,6 +51,12 @@ interface HomepageAnimeCardItem {
   score: number | null;
 }
 
+function getSafeAnimeList(data: JikanAnimeEntry[] | null | undefined): JikanAnimeEntry[] {
+  return Array.isArray(data)
+    ? data.filter((anime): anime is JikanAnimeEntry => Boolean(anime))
+    : [];
+}
+
 function deduplicateByMalId(animeList: JikanAnimeEntry[]): JikanAnimeEntry[] {
   return animeList.filter(
     (value, index, self) =>
@@ -58,7 +64,11 @@ function deduplicateByMalId(animeList: JikanAnimeEntry[]): JikanAnimeEntry[] {
   );
 }
 
-function getFranchiseKey(title: string): string {
+function getFranchiseKey(title: string | null | undefined): string {
+  if (typeof title !== "string" || !title.trim()) {
+    return "";
+  }
+
   const normalizedTitle = title
     .replace(/[–—]/g, "-")
     .replace(/\s+/g, " ")
@@ -73,17 +83,22 @@ function getFranchiseKey(title: string): string {
     .trim();
 }
 
-function deduplicateFranchises<T extends { title: string }>(animeList: T[]): T[] {
+function deduplicateFranchises<T extends { title?: string | null; id?: number }>(
+  animeList: T[],
+): T[] {
   const seenFranchises = new Set<string>();
 
-  return animeList.filter((anime) => {
-    const franchiseKey = getFranchiseKey(anime.title) || anime.title.toLowerCase();
+  return animeList.filter((anime, index) => {
+    const franchiseKey = getFranchiseKey(anime.title);
+    const fallbackKey =
+      typeof anime.id === "number" ? `anime-${anime.id}` : `anime-${index}`;
+    const deduplicationKey = franchiseKey || fallbackKey;
 
-    if (seenFranchises.has(franchiseKey)) {
+    if (seenFranchises.has(deduplicationKey)) {
       return false;
     }
 
-    seenFranchises.add(franchiseKey);
+    seenFranchises.add(deduplicationKey);
     return true;
   });
 }
@@ -160,9 +175,9 @@ async function getRecommendedAnime(
   const recommendationsPayload = await fetchJikanJson<JikanAnimeListResponse>(
     `https://api.jikan.moe/v4/anime?genres=${genreIds}&order_by=members&sort=desc&type=tv&limit=${HOME_FETCH_LIMIT}`,
   );
-  const recommendations = Array.isArray(recommendationsPayload?.data)
-    ? deduplicateByMalId(recommendationsPayload.data)
-    : [];
+  const recommendations = deduplicateByMalId(
+    getSafeAnimeList(recommendationsPayload?.data),
+  );
 
   return deduplicateFranchises(
     recommendations
@@ -202,11 +217,9 @@ async function getPopularAnime(): Promise<HomepageAnimeCardItem[]> {
     `https://api.jikan.moe/v4/seasons/now?sfw=true&limit=${HOME_FETCH_LIMIT}`,
   );
 
-  const popularAnime = Array.isArray(payload?.data)
-    ? [...payload.data].sort(
-        (left, right) => (right.members ?? 0) - (left.members ?? 0),
-      )
-    : [];
+  const popularAnime = [...getSafeAnimeList(payload?.data)].sort(
+    (left, right) => (right.members ?? 0) - (left.members ?? 0),
+  );
 
   return deduplicateFranchises(
     deduplicateByMalId(popularAnime)
@@ -295,6 +308,14 @@ function SectionFallback({ label }: { label: string }) {
   );
 }
 
+function EmptySection({ label }: { label: string }) {
+  return (
+    <div className="flex min-h-40 items-center justify-center rounded-3xl border border-white/10 bg-white/5 px-6 py-10 text-center text-sm text-muted-foreground">
+      {label}
+    </div>
+  );
+}
+
 function AnimeGrid({ items }: { items: HomepageAnimeCardItem[] }) {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
@@ -328,16 +349,16 @@ async function RecommendationsBlock({ userId }: { userId: number }) {
 
   const recommendations = await getRecommendedAnime(lastWatched.animeId);
 
-  if (recommendations.length === 0) {
-    return null;
-  }
-
   return (
     <section>
       <h2 className="mb-4 text-2xl font-semibold tracking-tight text-foreground sm:mb-6 sm:text-3xl">
         Рекомендуем вам
       </h2>
-      <AnimeGrid items={recommendations} />
+      {recommendations.length > 0 ? (
+        <AnimeGrid items={recommendations} />
+      ) : (
+        <EmptySection label="Пока не удалось собрать персональные рекомендации." />
+      )}
     </section>
   );
 }
@@ -350,7 +371,11 @@ async function PopularBlock() {
       <h2 className="mb-4 text-2xl font-semibold tracking-tight text-foreground sm:mb-6 sm:text-3xl">
         Популярное сейчас
       </h2>
-      <AnimeGrid items={popularAnime} />
+      {popularAnime.length > 0 ? (
+        <AnimeGrid items={popularAnime} />
+      ) : (
+        <EmptySection label="Не удалось загрузить популярные тайтлы. Попробуйте обновить страницу чуть позже." />
+      )}
     </section>
   );
 }
@@ -358,16 +383,16 @@ async function PopularBlock() {
 async function UserPicksBlock() {
   const picks = await getAniMirokUserPicks();
 
-  if (picks.length === 0) {
-    return null;
-  }
-
   return (
     <section>
       <h2 className="mb-4 text-2xl font-semibold tracking-tight text-foreground sm:mb-6 sm:text-3xl">
         Выбор пользователей AniMirok
       </h2>
-      <AnimeGrid items={picks} />
+      {picks.length > 0 ? (
+        <AnimeGrid items={picks} />
+      ) : (
+        <EmptySection label="Пока нет подборки из свежих пользовательских оценок." />
+      )}
     </section>
   );
 }
