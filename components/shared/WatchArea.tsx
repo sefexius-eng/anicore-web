@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 
-import { AnimeComments } from "@/components/shared/AnimeComments";
 import { InteractivePlayer } from "@/components/shared/InteractivePlayer";
 import { WatchlistDropdown } from "@/components/shared/watchlist-dropdown";
 import type { WatchHistoryItem } from "@/lib/watch-history";
@@ -96,8 +95,6 @@ export function WatchArea({
         episodesTotal={episodesTotal}
         progress={progress}
       />
-
-      <AnimeComments animeId={malId} />
     </section>
   );
 }
