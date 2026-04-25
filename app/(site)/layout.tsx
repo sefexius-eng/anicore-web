@@ -18,7 +18,7 @@ export default function SiteLayout({ children }: SiteLayoutProps) {
       <div className="flex flex-1 items-start">
         <Sidebar />
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col pb-24 lg:pb-0">
           <main className="w-full min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
             {children}
           </main>

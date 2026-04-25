@@ -1,0 +1,207 @@
+[browser] Uncaught Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} unauthorized={undefined} ...>
+        <RedirectBoundary>
+          <RedirectErrorBoundary router={{...}}>
+            <InnerLayoutRouter url="/" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+              <SegmentViewNode type="layout" pagePath="(site)/lay...">
+                <SegmentTrieNode>
+                <script>
+                <script>
+                <script>
+                <script>
+                <SiteLayout>
+                  <div className="relative f...">
+                    <div>
+                    <NavbarShell>
+                      <header className="sticky top...">
+                        <div className="grid h-ful...">
+                          <div>
+                          <div className="flex min-w...">
+                            <NavbarSearch>
+                              <JSXStyle>
+                              <form onSubmit={function handleSearch} className="jsx-84e760...">
+                                <div>
++                               <button
++                                 type="button"
++                                 aria-label="Начать голосовой поиск"
++                                 aria-pressed={false}
++                                 title="Голосовой поиск"
++                                 onClick={function handleMicrophoneClick}
++                                 className="jsx-84e760030e5ff5f4 flex h-11 w-11 shrink-0 items-center justify-center ..."
++                               >
+                          ...
+                    ...
+            ...
+
+    at <unknown> (https://react.dev/link/hydration-mismatch)
+    at throwOnHydrationMismatch (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3318:56)
+    at beginWork (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:6758:918)
+    at runWithFiberInDEV (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:74)
+    at performUnitOfWork (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9555:97)
+    at workLoopConcurrentByScheduler (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9551:58)
+    at renderRootConcurrent (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9534:71)
+    at performWorkOnRoot (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9061:150)
+    at performWorkOnRootViaSchedulerTask (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:10255:9)
+    at MessagePort.performWorkUntilDeadline (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_0rpq4pf._.js:2647:64)
+    at button (<anonymous>)
+    at NavbarSearch (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/_0dgqosq._.js:627:254)
+    at NavbarShell (components\shared\navbar.tsx:26:11)
+    at SiteLayout (app\(site)\layout.tsx:16:7)
+  24 |
+  25 |         <div className="flex min-w-0 items-center justify-center">
+> 26 |           <NavbarSearch />
+     |           ^
+  27 |         </div>
+  28 |
+  29 |         <div className="flex min-w-0 items-center justify-end">
+[browser] Uncaught Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+      <HTTPAccessFallbackErrorBoundary pathname="/search" notFound={{...}} forbidden={undefined} unauthorized={undefined} ...>
+        <RedirectBoundary>
+          <RedirectErrorBoundary router={{...}}>
+            <InnerLayoutRouter url="/search?q=..." tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>
+              <SegmentViewNode type="layout" pagePath="(site)/lay...">
+                <SegmentTrieNode>
+                <script>
+                <script>
+                <script>
+                <script>
+                <SiteLayout>
+                  <div className="relative f...">
+                    <div>
+                    <NavbarShell>
+                      <header className="sticky top...">
+                        <div className="grid h-ful...">
+                          <div>
+                          <div className="flex min-w...">
+                            <NavbarSearch>
+                              <JSXStyle>
+                              <form onSubmit={function handleSearch} className="jsx-84e760...">
+                                <div>
++                               <button
++                                 type="button"
++                                 aria-label="Начать голосовой поиск"
++                                 aria-pressed={false}
++                                 title="Голосовой поиск"
++                                 onClick={function handleMicrophoneClick}
++                                 className="jsx-84e760030e5ff5f4 flex h-11 w-11 shrink-0 items-center justify-center ..."
++                               >
+                          ...
+                    ...
+            ...
+
+    at <unknown> (https://react.dev/link/hydration-mismatch)
+    at throwOnHydrationMismatch (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3318:56)
+    at beginWork (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:6758:918)
+    at runWithFiberInDEV (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:74)
+    at performUnitOfWork (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9555:97)
+    at workLoopConcurrentByScheduler (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9551:58)
+    at renderRootConcurrent (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9534:71)
+    at performWorkOnRoot (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9061:150)
+    at performWorkOnRootViaSchedulerTask (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:10255:9)
+    at MessagePort.performWorkUntilDeadline (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_0rpq4pf._.js:2647:64)
+    at button (<anonymous>)
+    at NavbarSearch (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/_0dgqosq._.js:627:254)
+    at NavbarShell (components\shared\navbar.tsx:26:11)
+    at SiteLayout (app\(site)\layout.tsx:16:7)
+  24 |
+  25 |         <div className="flex min-w-0 items-center justify-center">
+> 26 |           <NavbarSearch />
+     |           ^
+  27 |         </div>
+  28 |
+  29 |         <div className="flex min-w-0 items-center justify-end">
+[browser] Uncaught Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+      <HTTPAccessFallbackErrorBoundary pathname="/anime/20" notFound={{...}} forbidden={undefined} ...>
+        <RedirectBoundary>
+          <RedirectErrorBoundary router={{...}}>
+            <InnerLayoutRouter url="/anime/20" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+              <SegmentViewNode type="layout" pagePath="(site)/lay...">
+                <SegmentTrieNode>
+                <script>
+                <script>
+                <script>
+                <script>
+                <SiteLayout>
+                  <div className="relative f...">
+                    <div>
+                    <NavbarShell>
+                      <header className="sticky top...">
+                        <div className="grid h-ful...">
+                          <div>
+                          <div className="flex min-w...">
+                            <NavbarSearch>
+                              <JSXStyle>
+                              <form onSubmit={function handleSearch} className="jsx-84e760...">
+                                <div>
++                               <button
++                                 type="button"
++                                 aria-label="Начать голосовой поиск"
++                                 aria-pressed={false}
++                                 title="Голосовой поиск"
++                                 onClick={function handleMicrophoneClick}
++                                 className="jsx-84e760030e5ff5f4 flex h-11 w-11 shrink-0 items-center justify-center ..."
++                               >
+                          ...
+                    ...
+            ...
+
+    at <unknown> (https://react.dev/link/hydration-mismatch)
+    at throwOnHydrationMismatch (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:3318:56)
+    at beginWork (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:6758:918)
+    at runWithFiberInDEV (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:965:74)
+    at performUnitOfWork (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9555:97)
+    at workLoopConcurrentByScheduler (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9551:58)
+    at renderRootConcurrent (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9534:71)
+    at performWorkOnRoot (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:9061:150)
+    at performWorkOnRootViaSchedulerTask (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_react-dom_058-ah~._.js:10255:9)
+    at MessagePort.performWorkUntilDeadline (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/node_modules_next_dist_compiled_0rpq4pf._.js:2647:64)
+    at button (<anonymous>)
+    at NavbarSearch (file://C:/Users/sefex/Desktop/САЙТ AniCore/anicore/.next/dev/static/chunks/_0dgqosq._.js:627:254)
+    at NavbarShell (components\shared\navbar.tsx:26:11)
+    at SiteLayout (app\(site)\layout.tsx:16:7)
+  24 |
+  25 |         <div className="flex min-w-0 items-center justify-center">
+> 26 |           <NavbarSearch />
+     |           ^
+  27 |         </div>
+  28 |
+  29 |         <div className="flex min-w-0 items-center justify-end">

@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ChangeEvent,
   type FormEvent,
   type KeyboardEvent,
@@ -22,6 +23,14 @@ import { cn, getImageUrl } from "@/lib/utils";
 const SEARCH_DEBOUNCE_MS = 350;
 const SEARCH_RESULTS_LIMIT = 6;
 const SEARCH_DROPDOWN_ID = "navbar-search-results";
+
+const subscribeToSpeechRecognitionSupport = () => () => undefined;
+
+const getSpeechRecognitionSupportSnapshot = () =>
+  typeof window !== "undefined" &&
+  Boolean(window.SpeechRecognition ?? window.webkitSpeechRecognition);
+
+const getServerSpeechRecognitionSupportSnapshot = () => false;
 
 interface AnimeShowcaseItem {
   id: number;
@@ -93,9 +102,11 @@ export function NavbarSearch() {
   const activeSearchControllerRef = useRef<AbortController | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const router = useRouter();
-  const isSpeechRecognitionSupported =
-    typeof window !== "undefined" &&
-    Boolean(window.SpeechRecognition ?? window.webkitSpeechRecognition);
+  const isSpeechRecognitionSupported = useSyncExternalStore(
+    subscribeToSpeechRecognitionSupport,
+    getSpeechRecognitionSupportSnapshot,
+    getServerSpeechRecognitionSupportSnapshot,
+  );
 
   const closeDropdown = useCallback(() => {
     setIsDropdownOpen(false);

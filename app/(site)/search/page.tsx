@@ -80,14 +80,20 @@ function buildSearchUrl(
   return queryString ? `${pathname}?${queryString}` : pathname;
 }
 
-function SearchPageContent() {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const router = useRouter();
+interface SearchPageFormProps {
+  pathname: string;
+  appliedQuery: string;
+  appliedGenre: string;
+  appliedSeason: string;
+}
 
-  const appliedQuery = (searchParams.get("q") ?? "").trim();
-  const appliedGenre = (searchParams.get("genre") ?? "").trim();
-  const appliedSeason = (searchParams.get("season") ?? "").trim();
+function SearchPageForm({
+  pathname,
+  appliedQuery,
+  appliedGenre,
+  appliedSeason,
+}: SearchPageFormProps) {
+  const router = useRouter();
   const hasAppliedCriteria = Boolean(appliedQuery || appliedGenre || appliedSeason);
 
   const [queryInput, setQueryInput] = useState(appliedQuery);
@@ -100,12 +106,6 @@ function SearchPageContent() {
   const appliedGenreLabel = getOptionLabel(GENRE_OPTIONS, appliedGenre);
   const appliedSeasonLabel = appliedSeason || null;
   const hasDraftCriteria = Boolean(queryInput.trim() || selectedGenre || selectedSeason);
-
-  useEffect(() => {
-    setQueryInput(appliedQuery);
-    setSelectedGenre(appliedGenre);
-    setSelectedSeason(appliedSeason);
-  }, [appliedGenre, appliedQuery, appliedSeason]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -393,6 +393,25 @@ function SearchPageContent() {
         </section>
       )}
     </div>
+  );
+}
+
+function SearchPageContent() {
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const appliedQuery = (searchParams.get("q") ?? "").trim();
+  const appliedGenre = (searchParams.get("genre") ?? "").trim();
+  const appliedSeason = (searchParams.get("season") ?? "").trim();
+
+  return (
+    <SearchPageForm
+      key={`${appliedQuery}:${appliedGenre}:${appliedSeason}`}
+      pathname={pathname}
+      appliedQuery={appliedQuery}
+      appliedGenre={appliedGenre}
+      appliedSeason={appliedSeason}
+    />
   );
 }
 
