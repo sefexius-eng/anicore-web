@@ -4,7 +4,18 @@
 import type { ReactNode, SyntheticEvent } from "react";
 import Link from "next/link";
 
-import { getImageUrl, IMAGE_PLACEHOLDER_URL } from "@/lib/utils";
+import { IMAGE_PLACEHOLDER_URL } from "@/lib/utils";
+
+interface AnimeImages {
+  webp?: {
+    large_image_url?: string | null;
+    image_url?: string | null;
+  } | null;
+  jpg?: {
+    large_image_url?: string | null;
+    image_url?: string | null;
+  } | null;
+}
 
 interface AnimeImage {
   original?: string | null;
@@ -13,74 +24,34 @@ interface AnimeImage {
   url?: string | null;
 }
 
-interface AnimeImages {
-  jpg?: {
-    large_image_url?: string | null;
-    image_url?: string | null;
-  } | null;
-}
-
-interface AnimeTitle {
-  type?: string | null;
-  title?: string | null;
-}
-
 interface AnimeCardProps {
   id: number;
-  name?: string | null;
-  russian?: string | null;
   title: string;
-  titles?: AnimeTitle[] | null;
-  image?: AnimeImage | null;
+  russian_title?: string | null;
   images?: AnimeImages | null;
+  image?: AnimeImage | null;
   image_url?: string | null;
   score: number | null;
   posterOverlay?: ReactNode;
 }
 
-function getPosterUrl(anime: Pick<AnimeCardProps, "image" | "image_url" | "images">) {
-  return getImageUrl(
-    anime.image?.original ??
-      anime.image?.preview ??
-      anime.image?.x160 ??
-      anime.image?.url ??
-      anime.image_url ??
-      anime.images?.jpg?.large_image_url ??
-      anime.images?.jpg?.image_url ??
-      null,
-  );
-}
-
 export function AnimeCard({
   id,
-  name,
-  russian,
   title,
-  image,
+  russian_title,
   images,
-  image_url,
   score,
   posterOverlay,
 }: AnimeCardProps) {
-  const anime = {
-    name,
-    russian,
-    title,
-  };
-  const posterUrl = getPosterUrl({ image, images, image_url });
+  const posterUrl =
+    images?.webp?.large_image_url ||
+    images?.jpg?.large_image_url ||
+    IMAGE_PLACEHOLDER_URL;
   const formattedScore = score ?? "Нет";
-  const displayTitle = anime.russian || anime.name || anime.title;
+  const displayTitle = russian_title || title;
 
   const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
-    const img = event.currentTarget;
-
-    if (img.src.includes("shikimori.one")) {
-      img.src = img.src.replace("shikimori.one", "desu.shikimori.one");
-    } else if (img.src.includes("desu.shikimori.one")) {
-      img.src = img.src.replace("desu.shikimori.one", "shikimori.me");
-    } else {
-      img.src = IMAGE_PLACEHOLDER_URL;
-    }
+    event.currentTarget.src = IMAGE_PLACEHOLDER_URL;
   };
 
   return (

@@ -348,6 +348,38 @@ export async function getRecommendationsByGenres(
   return fetchShikimoriAnimeList(`/animes?${searchParams.toString()}`);
 }
 
+export async function getShikimoriTitles(
+  malIds: number[],
+): Promise<Record<number, string>> {
+  const uniqueIds = Array.from(
+    new Set(
+      malIds.filter((malId) => Number.isInteger(malId) && malId > 0),
+    ),
+  );
+  const titleMap: Record<number, string> = {};
+
+  for (let index = 0; index < uniqueIds.length; index += 50) {
+    const batch = uniqueIds.slice(index, index + 50);
+    const searchParams = new URLSearchParams({
+      ids: batch.join(","),
+      limit: "50",
+    });
+    const animeList = await fetchShikimoriAnimeList(
+      `/animes?${searchParams.toString()}`,
+    );
+
+    animeList.forEach((anime) => {
+      const russianTitle = anime.russian?.trim();
+
+      if (typeof anime.id === "number" && russianTitle) {
+        titleMap[anime.id] = russianTitle;
+      }
+    });
+  }
+
+  return titleMap;
+}
+
 export async function searchAnime(
   params: AnimeSearchParams | string,
   limit = 20,

@@ -7,27 +7,75 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizePositiveInteger } from "@/lib/profile-data";
 import { formatTime } from "@/lib/watch-history";
-import { getAnimeById, type AnimeShowcaseItem } from "@/services/jikanApi";
+import { getShikimoriTitles } from "@/services/jikanApi";
 
 const HISTORY_LIMIT = 50;
-const SHIKIMORI_BATCH_SIZE = 4;
+const JIKAN_BATCH_SIZE = 4;
+const JIKAN_REVALIDATE_SECONDS = 60 * 60 * 6;
 
-interface HistoryAnimeCardItem extends AnimeShowcaseItem {
+interface JikanAnimeImages {
+  webp?: {
+    large_image_url?: string | null;
+    image_url?: string | null;
+  } | null;
+  jpg?: {
+    large_image_url?: string | null;
+    image_url?: string | null;
+  } | null;
+}
+
+interface JikanAnimeEntry {
+  title?: string;
+  score?: number | null;
+  images?: JikanAnimeImages | null;
+}
+
+interface JikanAnimeResponse {
+  data?: JikanAnimeEntry;
+}
+
+interface HistoryAnimeCardItem {
+  id: number;
+  title: string;
+  russian_title?: string | null;
+  images?: JikanAnimeImages | null;
+  score: number | null;
   lastTime: number;
 }
 
 const getHistoryAnimeCard = cache(
   async (animeId: number): Promise<Omit<HistoryAnimeCardItem, "lastTime">> => {
     try {
-      return await getAnimeById(animeId);
+      const response = await fetch(`https://api.jikan.moe/v4/anime/${animeId}`, {
+        headers: {
+          Accept: "application/json",
+        },
+        next: {
+          revalidate: JIKAN_REVALIDATE_SECONDS,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Jikan request failed with status ${response.status}.`);
+      }
+
+      const payload = (await response.json()) as JikanAnimeResponse;
+      const anime = payload.data;
+
+      return {
+        id: animeId,
+        title: anime?.title?.trim() || `Anime #${animeId}`,
+        images: anime?.images ?? null,
+        score:
+          typeof anime?.score === "number" && Number.isFinite(anime.score)
+            ? anime.score
+            : null,
+      };
     } catch {
       return {
         id: animeId,
-        name: `Anime #${animeId}`,
-        russian: null,
         title: `Anime #${animeId}`,
-        image: null,
-        image_url: "",
+        images: null,
         score: null,
       };
     }
@@ -44,8 +92,8 @@ async function loadHistoryAnimeMap(
   );
   const animeMap = new Map<number, Omit<HistoryAnimeCardItem, "lastTime">>();
 
-  for (let index = 0; index < uniqueIds.length; index += SHIKIMORI_BATCH_SIZE) {
-    const batch = uniqueIds.slice(index, index + SHIKIMORI_BATCH_SIZE);
+  for (let index = 0; index < uniqueIds.length; index += JIKAN_BATCH_SIZE) {
+    const batch = uniqueIds.slice(index, index + JIKAN_BATCH_SIZE);
     const batchItems = await Promise.all(
       batch.map((animeId) => getHistoryAnimeCard(animeId)),
     );
@@ -97,6 +145,13 @@ export default async function HistoryPage() {
       },
     ];
   });
+  const titleMap = await getShikimoriTitles(
+    historyItems.map((item) => item.id),
+  );
+  const historyItemsWithTitles = historyItems.map((item) => ({
+    ...item,
+    russian_title: titleMap[item.id] ?? null,
+  }));
 
   return (
     <section className="space-y-6">
@@ -116,17 +171,15 @@ export default async function HistoryPage() {
         </div>
       </div>
 
-      {historyItems.length > 0 ? (
+      {historyItemsWithTitles.length > 0 ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {historyItems.map((item) => (
+          {historyItemsWithTitles.map((item) => (
             <AnimeCard
               key={item.id}
               id={item.id}
-              name={item.name}
-              russian={item.russian}
               title={item.title}
-              image_url={item.image_url}
-              image={item.image}
+              russian_title={item.russian_title}
+              images={item.images}
               score={item.score}
               posterOverlay={
                 <span className="inline-flex rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white shadow-lg ring-1 ring-white/10 backdrop-blur-sm sm:text-sm">
