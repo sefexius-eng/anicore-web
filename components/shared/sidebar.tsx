@@ -45,39 +45,31 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-full shrink-0 md:w-64">
-      <div className="rounded-[28px] border border-white/10 bg-[#111111]/95 p-3 shadow-[0_24px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm md:sticky md:top-[5.5rem] md:max-h-[calc(100vh-6rem)] md:overflow-y-auto">
-        <div className="px-3 pb-3 pt-2">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-            \u041d\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u044f
-          </p>
-        </div>
+    <aside className="flex shrink-0 flex-col w-64 h-screen sticky top-0 pt-4 pb-8 bg-background border-r border-white/5">
+      <nav
+        aria-label="\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0435 \u043c\u0435\u043d\u044e"
+        className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+      >
+        {navigationItems.map((item) => {
+          const isActive = item.isActive(pathname);
 
-        <nav
-          aria-label="\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0435 \u043c\u0435\u043d\u044e"
-          className="flex gap-2 overflow-x-auto pb-1 md:flex-col md:overflow-visible"
-        >
-          {navigationItems.map((item) => {
-            const isActive = item.isActive(pathname);
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex min-w-[10.5rem] items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all md:min-w-0",
-                  isActive
-                    ? "bg-white text-black shadow-[0_12px_30px_rgba(255,255,255,0.12)]"
-                    : "text-slate-300 hover:bg-white/5 hover:text-white",
-                )}
-              >
-                <item.Icon className="size-5 shrink-0" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all",
+                isActive
+                  ? "bg-white text-black shadow-[0_12px_30px_rgba(255,255,255,0.12)]"
+                  : "text-slate-300 hover:bg-white/5 hover:text-white",
+              )}
+            >
+              <item.Icon className="size-5 shrink-0" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </aside>
   );
 }

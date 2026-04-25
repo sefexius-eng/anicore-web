@@ -15,13 +15,15 @@ export default function SiteLayout({ children }: SiteLayoutProps) {
 
       <NavbarShell />
 
-      <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 lg:px-8 md:flex-row md:items-start">
+      <div className="flex flex-1">
         <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <main className="min-w-0 flex-1">{children}</main>
-          <div className="pt-10">
-            <Footer />
+          <div className="mx-auto flex w-full max-w-[1336px] flex-1 flex-col px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+            <main className="min-w-0 flex-1">{children}</main>
+            <div className="pt-10">
+              <Footer />
+            </div>
           </div>
         </div>
       </div>

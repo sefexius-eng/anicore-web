@@ -39,11 +39,8 @@ export function WatchArea({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Смотреть онлайн
+            {"\u0421\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u043e\u043d\u043b\u0430\u0439\u043d"}
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Выберите озвучку или сразу запускайте встроенный плеер Kodik.
-          </p>
         </div>
 
         <div className="flex flex-col items-start gap-3 sm:items-end">
@@ -52,7 +49,7 @@ export function WatchArea({
           <div className="rounded-xl border border-neutral-700/80 bg-neutral-950/80 p-1.5">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="px-2 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-neutral-400">
-                Сезоны франшизы
+                {"\u0421\u0435\u0437\u043e\u043d\u044b \u0444\u0440\u0430\u043d\u0448\u0438\u0437\u044b"}
               </span>
 
               <div className="flex flex-wrap gap-1">
@@ -66,7 +63,11 @@ export function WatchArea({
 
                   if (season.isCurrent) {
                     return (
-                      <span key={season.id} className={seasonClasses} title={season.label}>
+                      <span
+                        key={season.id}
+                        className={seasonClasses}
+                        title={season.label}
+                      >
                         {season.label}
                       </span>
                     );

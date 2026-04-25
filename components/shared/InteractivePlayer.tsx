@@ -590,13 +590,13 @@ export function InteractivePlayer({
             : "\u0412\u044b\u0431\u0440\u0430\u0442\u044c \u043e\u0437\u0432\u0443\u0447\u043a\u0443"}
         </Button>
 
-        <p className="text-xs text-muted-foreground">
-          {isLoading
-            ? "\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u043f\u043b\u0435\u0435\u0440\u0430..."
-            : errorMessage
-              ? "\u041f\u043b\u0435\u0435\u0440 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d"
-              : "Kodik iframe"}
-        </p>
+        {isLoading || errorMessage ? (
+          <p className="text-xs text-muted-foreground">
+            {isLoading
+              ? "\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u043f\u043b\u0435\u0435\u0440\u0430..."
+              : "\u041f\u043b\u0435\u0435\u0440 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d"}
+          </p>
+        ) : null}
       </div>
 
       <div className="group relative w-full">
