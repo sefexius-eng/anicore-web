@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const AVATAR_PLACEHOLDER =
-  "https://placehold.co/160x160/111827/ffffff?text=Avatar";
+  "/default-avatar.jpg";
 const MAX_AVATAR_FILE_SIZE = 1_500_000;
 
 interface AvatarUploadProps {

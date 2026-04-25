@@ -58,20 +58,23 @@ export default async function FeedPage() {
 
       {items.length > 0 ? (
         <section className="space-y-4">
-          {items.map((item) => (
-            <article
-              key={item.id}
-              className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_28px_80px_rgba(0,0,0,0.32)] backdrop-blur-sm sm:p-6"
-            >
-              <div className="flex gap-4">
-                <Link href={`/user/${item.user.id}`} className="shrink-0">
-                  <img
-                    src={item.user.avatarSrc}
-                    alt={item.user.name}
-                    className="size-14 rounded-full border border-white/10 object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                </Link>
+          {items.map((item) => {
+            const avatarSrc = item.user.image?.trim() || "/default-avatar.jpg";
+
+            return (
+              <article
+                key={item.id}
+                className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-[0_28px_80px_rgba(0,0,0,0.32)] backdrop-blur-sm sm:p-6"
+              >
+                <div className="flex gap-4">
+                  <Link href={`/user/${item.user.id}`} className="shrink-0">
+                    <img
+                      src={avatarSrc}
+                      alt={item.user.name}
+                      className="size-14 rounded-full border border-white/10 object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </Link>
 
                 <div className="min-w-0 flex-1 space-y-3">
                   <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-400">
@@ -138,9 +141,10 @@ export default async function FeedPage() {
                     </Link>
                   </div>
                 </div>
-              </div>
-            </article>
-          ))}
+                </div>
+              </article>
+            );
+          })}
         </section>
       ) : (
         <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 text-sm text-slate-300 shadow-[0_28px_80px_rgba(0,0,0,0.32)] backdrop-blur-sm sm:p-7">

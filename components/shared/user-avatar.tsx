@@ -2,7 +2,6 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useState } from "react";
-import { User } from "lucide-react";
 
 interface UserAvatarProps {
   userLabel: string;
@@ -16,6 +15,7 @@ const USER_AVATAR_UPDATED_EVENT = "anicore:user-avatar-updated";
 
 export function UserAvatar({ userLabel }: UserAvatarProps) {
   const [image, setImage] = useState<string | null>(null);
+  const avatarSrc = image || "/default-avatar.jpg";
 
   useEffect(() => {
     let isMounted = true;
@@ -64,21 +64,18 @@ export function UserAvatar({ userLabel }: UserAvatarProps) {
     };
   }, []);
 
-  if (image) {
-    return (
-      <img
-        src={image}
-        alt={userLabel}
-        className="h-8 w-8 rounded-full object-cover"
-        loading="lazy"
-        referrerPolicy="no-referrer"
-      />
-    );
-  }
-
   return (
-    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#3a3a3a]">
-      <User className="size-4 text-muted-foreground" />
-    </span>
+    <img
+      src={avatarSrc}
+      alt={userLabel}
+      className="h-8 w-8 rounded-full object-cover"
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={(event) => {
+        if (!event.currentTarget.src.endsWith("/default-avatar.jpg")) {
+          event.currentTarget.src = "/default-avatar.jpg";
+        }
+      }}
+    />
   );
 }

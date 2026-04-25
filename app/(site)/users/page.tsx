@@ -5,10 +5,7 @@ import { Search, Users } from "lucide-react";
 import { FollowButton } from "@/components/shared/FollowButton";
 import { Input } from "@/components/ui/input";
 import { auth } from "@/lib/auth";
-import {
-  buildAvatarFallback,
-  normalizePositiveInteger,
-} from "@/lib/profile-data";
+import { normalizePositiveInteger } from "@/lib/profile-data";
 import { prisma } from "@/lib/prisma";
 
 interface UsersPageProps {
@@ -139,7 +136,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       {users.length > 0 ? (
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {users.map((user) => {
-            const avatarSrc = user.image?.trim() || buildAvatarFallback(user.name);
+            const avatarSrc = user.image?.trim() || "/default-avatar.jpg";
 
             return (
               <article
