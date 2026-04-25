@@ -44,6 +44,7 @@ interface JikanAnimeListResponse {
 interface HomepageAnimeCardItem {
   id: number;
   title: string;
+  titles?: JikanTitleEntry[] | null;
   image: {
     original?: string | null;
   } | null;
@@ -198,6 +199,7 @@ async function getRecommendedAnime(
         return {
           id,
           title,
+          titles: anime.titles ?? null,
           image: {
             original: imageUrl,
           },
@@ -235,6 +237,7 @@ async function getPopularAnime(): Promise<HomepageAnimeCardItem[]> {
         return {
           id,
           title,
+          titles: anime.titles ?? null,
           image: {
             original: imageUrl,
           },
@@ -288,6 +291,7 @@ async function getAniMirokUserPicks(): Promise<HomepageAnimeCardItem[]> {
       return {
         id: review.animeId,
         title,
+        titles: anime?.titles ?? null,
         image: {
           original: imageUrl,
         },
@@ -324,6 +328,7 @@ function AnimeGrid({ items }: { items: HomepageAnimeCardItem[] }) {
           key={anime.id}
           id={anime.id}
           title={anime.title}
+          titles={anime.titles}
           image={anime.image}
           image_url={anime.image_url}
           score={anime.score}

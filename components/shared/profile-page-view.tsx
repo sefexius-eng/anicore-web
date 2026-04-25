@@ -74,6 +74,7 @@ function ProfileShelf({
               key={`${title}-${item.id}`}
               id={item.id}
               title={item.title}
+              titles={item.titles}
               image_url={item.image_url}
               score={item.score}
               posterOverlay={buildPosterOverlay(item.overlayLabel)}

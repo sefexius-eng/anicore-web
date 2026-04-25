@@ -69,6 +69,7 @@ interface JikanAnimeResponse {
 interface ProfileAnimeCardBase {
   id: number;
   title: string;
+  titles?: JikanTitleEntry[] | null;
   image_url: string;
   episodes: number | null;
   score: number | null;
@@ -200,6 +201,7 @@ const getProfileAnimeCard = cache(
       return {
         id: animeId,
         title: getBestTitle(anime) || `Anime #${animeId}`,
+        titles: anime?.titles ?? null,
         image_url: getImageUrl(
           anime?.images?.jpg?.large_image_url ?? anime?.images?.jpg?.image_url ?? null,
         ),
@@ -216,6 +218,7 @@ const getProfileAnimeCard = cache(
       return {
         id: animeId,
         title: `Anime #${animeId}`,
+        titles: null,
         image_url: getImageUrl(null),
         episodes: null,
         score: null,

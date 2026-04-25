@@ -13,18 +13,37 @@ interface AnimeImage {
   url?: string | null;
 }
 
+interface AnimeTitle {
+  type?: string | null;
+  title?: string | null;
+}
+
 interface AnimeCardProps {
   id: number;
   title: string;
+  titles?: AnimeTitle[] | null;
   image?: AnimeImage | null;
   image_url?: string | null;
   score: number | null;
   posterOverlay?: ReactNode;
 }
 
+const getRuTitle = (anime: Pick<AnimeCardProps, "title" | "titles">) => {
+  const ru = anime.titles?.find(
+    (title) =>
+      title.type === "Russian" ||
+      (title.type === "Synonym" &&
+        typeof title.title === "string" &&
+        /[А-Яа-я]/.test(title.title)),
+  );
+
+  return ru?.title || anime.title;
+};
+
 export function AnimeCard({
   id,
   title,
+  titles,
   image,
   image_url,
   score,
@@ -32,6 +51,7 @@ export function AnimeCard({
 }: AnimeCardProps) {
   const posterUrl = getImageUrl(image ?? image_url ?? null);
   const formattedScore = score ?? "Нет";
+  const displayTitle = getRuTitle({ title, titles });
 
   const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
     const img = event.currentTarget;
@@ -51,7 +71,7 @@ export function AnimeCard({
         <div className="group relative aspect-[16/9] w-full overflow-hidden rounded-xl shadow-md transition-shadow duration-300 group-hover:shadow-2xl sm:aspect-[3/4]">
           <img
             src={posterUrl}
-            alt={title || "Anime Poster"}
+            alt={displayTitle || "Anime Poster"}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
             referrerPolicy="no-referrer"
@@ -80,9 +100,9 @@ export function AnimeCard({
         <div>
           <h3
             className="line-clamp-2 text-sm font-semibold text-white transition-colors group-hover:text-blue-400"
-            title={title}
+            title={displayTitle}
           >
-            {title}
+            {displayTitle}
           </h3>
           <p className="text-xs text-gray-400">Оценка: {formattedScore}</p>
         </div>
