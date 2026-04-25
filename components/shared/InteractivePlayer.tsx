@@ -55,7 +55,7 @@ const IFRAME_HISTORY_SAVE_GAP_SECONDS = Math.max(
   Math.floor(WATCH_HISTORY_SAVE_THROTTLE_MS / 1000),
 );
 const DATABASE_HISTORY_SAVE_GAP_SECONDS = 20;
-const WATCHED_EPISODE_PROGRESS_THRESHOLD = 0.8;
+const WATCHED_EPISODE_PROGRESS_THRESHOLD = 0.85;
 
 function isTranslationOption(value: unknown): value is TranslationOption {
   if (typeof value !== "object" || value === null) {
@@ -365,14 +365,9 @@ export function InteractivePlayer({
   const handleEpisodeChange = useCallback(
     (rawEpisodeNumber: number) => {
       const nextEpisodeNumber = clampEpisodeNumber(rawEpisodeNumber, episodesTotal);
-      const previousEpisodeNumber = currentEpisodeRef.current;
 
-      if (nextEpisodeNumber === previousEpisodeNumber) {
+      if (nextEpisodeNumber === currentEpisodeRef.current) {
         return;
-      }
-
-      if (nextEpisodeNumber > previousEpisodeNumber) {
-        markEpisodeAsWatched(previousEpisodeNumber, currentTimeRef.current);
       }
 
       currentEpisodeRef.current = nextEpisodeNumber;
@@ -383,7 +378,7 @@ export function InteractivePlayer({
       lastSavedTimeRef.current = 0;
       lastDatabaseSavedTimeRef.current = 0;
     },
-    [episodesTotal, markEpisodeAsWatched],
+    [episodesTotal],
   );
 
   const loadPlayer = useCallback(
@@ -449,7 +444,7 @@ export function InteractivePlayer({
         setErrorMessage(
           error instanceof Error
             ? error.message
-            : "Не удалось загрузить плеер Kodik.",
+            : "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u043f\u043b\u0435\u0435\u0440 Kodik.",
         );
         setPlayerLink(null);
       } finally {
@@ -545,11 +540,15 @@ export function InteractivePlayer({
         ).catch(() => undefined);
       }
 
-      if (
+      const isWatched =
+        payload.key === "kodik_player_time_update" &&
         durationSecondsRef.current > 0 &&
-        currentEpisodeRef.current > completedEpisodesRef.current &&
         normalizedCurrentTime / durationSecondsRef.current >=
-          WATCHED_EPISODE_PROGRESS_THRESHOLD
+          WATCHED_EPISODE_PROGRESS_THRESHOLD;
+
+      if (
+        isWatched &&
+        currentEpisodeRef.current > completedEpisodesRef.current
       ) {
         markEpisodeAsWatched(currentEpisodeRef.current, normalizedCurrentTime);
       }
@@ -576,67 +575,31 @@ export function InteractivePlayer({
     translations.find((translation) => translation.id === activeTranslationId) ??
     null;
   const ambientImageUrl = history?.image?.trim() || "";
-  const canGoToPreviousEpisode = currentEpisodeNumber > 1;
-  const canGoToNextEpisode =
-    typeof episodesTotal === "number" && Number.isFinite(episodesTotal)
-      ? currentEpisodeNumber < episodesTotal
-      : true;
 
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800"
-            onClick={() => setIsTranslationSidebarOpen(true)}
-          >
-            {activeTranslation
-              ? `Озвучка: ${activeTranslation.title}`
-              : "Выбрать озвучку"}
-          </Button>
-
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800 disabled:opacity-50"
-              onClick={() => handleEpisodeChange(currentEpisodeNumber - 1)}
-              disabled={!playerLink || !canGoToPreviousEpisode}
-            >
-              Пред.
-            </Button>
-
-            <span className="rounded-full border border-neutral-700 bg-neutral-950/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-neutral-300">
-              Серия {currentEpisodeNumber}
-              {typeof episodesTotal === "number" && episodesTotal > 0
-                ? ` / ${episodesTotal}`
-                : ""}
-            </span>
-
-            <Button
-              type="button"
-              variant="secondary"
-              className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800 disabled:opacity-50"
-              onClick={() => handleEpisodeChange(currentEpisodeNumber + 1)}
-              disabled={!playerLink || !canGoToNextEpisode}
-            >
-              След.
-            </Button>
-          </div>
-        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800"
+          onClick={() => setIsTranslationSidebarOpen(true)}
+        >
+          {activeTranslation
+            ? `\u041e\u0437\u0432\u0443\u0447\u043a\u0430: ${activeTranslation.title}`
+            : "\u0412\u044b\u0431\u0440\u0430\u0442\u044c \u043e\u0437\u0432\u0443\u0447\u043a\u0443"}
+        </Button>
 
         <p className="text-xs text-muted-foreground">
           {isLoading
-            ? "Загрузка плеера..."
+            ? "\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u043f\u043b\u0435\u0435\u0440\u0430..."
             : errorMessage
-              ? "Плеер недоступен"
+              ? "\u041f\u043b\u0435\u0435\u0440 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d"
               : "Kodik iframe"}
         </p>
       </div>
 
-      <div className="relative w-full group">
+      <div className="group relative w-full">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -inset-4 z-0 rounded-[2rem] opacity-40 mix-blend-screen blur-[60px] transition-opacity duration-1000 group-hover:opacity-60 sm:-inset-6 sm:blur-[100px]"
@@ -656,7 +619,7 @@ export function InteractivePlayer({
           }
         />
 
-        <div className="relative z-10 w-full aspect-video overflow-hidden rounded-xl border border-white/5 bg-black shadow-2xl sm:rounded-2xl">
+        <div className="relative z-10 aspect-video w-full overflow-hidden rounded-xl border border-white/5 bg-black shadow-2xl sm:rounded-2xl">
           {iframeSrc ? (
             <iframe
               key={`${activeTranslationId ?? malId}-${currentEpisodeNumber}-${startFromSeconds}`}
@@ -666,15 +629,16 @@ export function InteractivePlayer({
               width="100%"
               height="100%"
               frameBorder="0"
-              allow="autoplay; fullscreen"
+              allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write"
               allowFullScreen
               className="h-full w-full"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center p-6 text-sm text-muted-foreground">
               {isLoading
-                ? "Загрузка плеера..."
-                : errorMessage ?? "Плеер не найден."}
+                ? "\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u043f\u043b\u0435\u0435\u0440\u0430..."
+                : errorMessage ??
+                  "\u041f\u043b\u0435\u0435\u0440 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d."}
             </div>
           )}
         </div>
