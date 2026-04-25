@@ -314,6 +314,7 @@ export async function getProfileViewData(
         select: {
           animeId: true,
           episodesWatched: true,
+          totalAvailable: true,
         },
       }),
       viewerUserId && !isOwnProfile
@@ -358,8 +359,17 @@ export async function getProfileViewData(
       section.entries.map((entry) => entry.animeId),
     ),
   ]);
-  const watchProgressMap = new Map<number, number>(
-    watchProgressEntries.map((entry) => [entry.animeId, entry.episodesWatched]),
+  const watchProgressMap = new Map<
+    number,
+    { episodesWatched: number; totalAvailable: number | null }
+  >(
+    watchProgressEntries.map((entry) => [
+      entry.animeId,
+      {
+        episodesWatched: entry.episodesWatched,
+        totalAvailable: entry.totalAvailable,
+      },
+    ]),
   );
 
   const historyItems: ProfileAnimeCardItem[] = historyEntries.flatMap((entry) => {
@@ -390,11 +400,13 @@ export async function getProfileViewData(
         }
 
         if (section.status === "WATCHING") {
-          const episodesWatched = watchProgressMap.get(entry.animeId) ?? 0;
+          const watchProgress = watchProgressMap.get(entry.animeId);
+          const episodesWatched = watchProgress?.episodesWatched ?? 0;
+          const totalAvailable = watchProgress?.totalAvailable || anime.episodes;
 
           return {
             ...anime,
-            overlayLabel: `Просмотрено: ${episodesWatched} / ${anime.episodes ?? "?"}`,
+            overlayLabel: `Просмотрено: ${episodesWatched} / ${totalAvailable ?? "?"}`,
           };
         }
 

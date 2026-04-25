@@ -10,6 +10,7 @@ interface HistoryRequestBody {
   animeId?: unknown;
   time?: unknown;
   episodeNumber?: unknown;
+  totalAvailable?: unknown;
 }
 
 function hasOwnProperty(value: object, key: string) {
@@ -47,8 +48,12 @@ export async function POST(request: Request) {
     typeof body?.episodeNumber === "undefined"
       ? undefined
       : normalizeInteger(body.episodeNumber);
+  const totalAvailable =
+    typeof body?.totalAvailable === "undefined"
+      ? undefined
+      : normalizeInteger(body.totalAvailable);
 
-  if (!animeId || time === null || episodeNumber === null) {
+  if (!animeId || time === null || episodeNumber === null || totalAvailable === null) {
     return NextResponse.json(
       { error: "Invalid history payload." },
       { status: 400 },
@@ -64,6 +69,7 @@ export async function POST(request: Request) {
     },
     select: {
       episodesWatched: true,
+      totalAvailable: true,
     },
   });
 
@@ -84,12 +90,18 @@ export async function POST(request: Request) {
             ),
           }
         : {}),
+      ...(typeof totalAvailable === "number"
+        ? {
+            totalAvailable,
+          }
+        : {}),
     },
     create: {
       userId,
       animeId,
       lastTime: time,
       episodesWatched: episodeNumber ?? 0,
+      totalAvailable: totalAvailable ?? 0,
     },
   });
 

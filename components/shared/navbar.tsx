@@ -11,8 +11,8 @@ export async function NavbarShell() {
   const session = await auth();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="grid h-16 w-full grid-cols-[1fr_minmax(0,720px)_1fr] items-center gap-3 px-4 lg:px-6">
+    <header className="sticky top-0 z-50 h-[72px] border-b border-white/5 bg-background/95 backdrop-blur">
+      <div className="grid h-full w-full grid-cols-[1fr_minmax(0,720px)_1fr] items-center gap-3 px-4 lg:px-6">
         <div className="flex min-w-0 items-center justify-start">
           <Link
             href="/"

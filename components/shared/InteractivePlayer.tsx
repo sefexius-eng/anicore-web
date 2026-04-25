@@ -33,6 +33,7 @@ interface KodikPlayerResponse {
 interface InteractivePlayerProgress {
   episodesWatched: number;
   lastTime: number;
+  totalAvailable: number | null;
 }
 
 interface PlayerBridgePayload {
@@ -311,9 +312,11 @@ export function InteractivePlayer({
   progress,
 }: InteractivePlayerProps) {
   const initialCompletedEpisodes = progress?.episodesWatched ?? 0;
+  const initialTotalAvailable =
+    typeof progress?.totalAvailable === "number" ? progress.totalAvailable : null;
   const initialEpisodeNumber = clampEpisodeNumber(
     initialCompletedEpisodes + 1,
-    episodesTotal,
+    initialTotalAvailable ?? episodesTotal,
   );
   const initialStartFromSeconds = progress?.lastTime ?? 0;
 
@@ -332,13 +335,10 @@ export function InteractivePlayer({
   const [startFromSeconds, setStartFromSeconds] = useState(
     initialStartFromSeconds,
   );
-  const [completedEpisodeState, setCompletedEpisodeState] = useState(() => ({
+  const [availableEpisodeState, setAvailableEpisodeState] = useState(() => ({
     historyId: history?.id ?? null,
-    value: initialCompletedEpisodes,
+    value: initialTotalAvailable,
   }));
-  const [maxAvailableEpisode, setMaxAvailableEpisode] = useState<number | null>(
-    null,
-  );
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -349,17 +349,16 @@ export function InteractivePlayer({
   const completedEpisodesRef = useRef(initialCompletedEpisodes);
   const currentTimeRef = useRef(initialStartFromSeconds);
   const durationSecondsRef = useRef(0);
-  const completedEpisodes =
-    completedEpisodeState.historyId === (history?.id ?? null)
-      ? Math.max(initialCompletedEpisodes, completedEpisodeState.value)
-      : initialCompletedEpisodes;
+  const currentHistoryId = history?.id ?? null;
+  const maxAvailableEpisode =
+    availableEpisodeState.historyId === currentHistoryId
+      ? availableEpisodeState.value
+      : initialTotalAvailable;
   const activeEpisodesLimit = maxAvailableEpisode ?? episodesTotal;
-  const watchedEpisodesInActiveDub =
+  const activeAvailableEpisodeCount =
     typeof maxAvailableEpisode === "number"
-      ? Math.min(completedEpisodes, maxAvailableEpisode)
-      : completedEpisodes;
-  const availableEpisodesLabel =
-    typeof maxAvailableEpisode === "number" ? String(maxAvailableEpisode) : "?";
+      ? maxAvailableEpisode
+      : initialTotalAvailable;
 
   const iframeSrc = useMemo(() => {
     if (!playerLink) {
@@ -403,7 +402,12 @@ export function InteractivePlayer({
   }, [history?.id, iframeSrc, startFromSeconds]);
 
   const syncHistoryToDatabase = useCallback(
-    async (animeId: number, currentTime: number, episodeNumber?: number) => {
+    async (
+      animeId: number,
+      currentTime: number,
+      episodeNumber?: number,
+      totalAvailable?: number | null,
+    ) => {
       await fetch("/api/history", {
         method: "POST",
         headers: {
@@ -415,6 +419,7 @@ export function InteractivePlayer({
           animeId,
           time: currentTime,
           ...(typeof episodeNumber === "number" ? { episodeNumber } : {}),
+          ...(typeof totalAvailable === "number" ? { totalAvailable } : {}),
         }),
       });
     },
@@ -430,22 +435,16 @@ export function InteractivePlayer({
       }
 
       completedEpisodesRef.current = episodeNumber;
-      setCompletedEpisodeState((currentState) => ({
-        historyId: currentHistory.id,
-        value:
-          currentState.historyId === currentHistory.id
-            ? Math.max(currentState.value, episodeNumber)
-            : episodeNumber,
-      }));
       lastDatabaseSavedTimeRef.current = currentTime;
 
       void syncHistoryToDatabase(
         currentHistory.id,
         Math.max(0, Math.floor(currentTime)),
         episodeNumber,
+        activeAvailableEpisodeCount,
       ).catch(() => undefined);
     },
-    [syncHistoryToDatabase],
+    [activeAvailableEpisodeCount, syncHistoryToDatabase],
   );
 
   const handleEpisodeChange = useCallback(
@@ -479,7 +478,10 @@ export function InteractivePlayer({
       setIsLoading(true);
       setErrorMessage(null);
       setPlayerLink(null);
-      setMaxAvailableEpisode(null);
+      setAvailableEpisodeState({
+        historyId: currentHistoryId,
+        value: null,
+      });
 
       if (translationId === null) {
         setTranslations([]);
@@ -540,7 +542,10 @@ export function InteractivePlayer({
 
         setTranslations(availableTranslations);
         setActiveTranslationId(resolvedActiveTranslationId);
-        setMaxAvailableEpisode(normalizePositiveInteger(data.maxAvailableEpisode));
+        setAvailableEpisodeState({
+          historyId: currentHistoryId,
+          value: normalizePositiveInteger(data.maxAvailableEpisode),
+        });
         setPlayerLink(data.link ?? null);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -562,7 +567,7 @@ export function InteractivePlayer({
         }
       }
     },
-    [malId],
+    [currentHistoryId, malId],
   );
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -643,6 +648,8 @@ export function InteractivePlayer({
         void syncHistoryToDatabase(
           currentHistory.id,
           normalizedCurrentTime,
+          undefined,
+          activeAvailableEpisodeCount,
         ).catch(() => undefined);
       }
 
@@ -665,7 +672,12 @@ export function InteractivePlayer({
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [handleEpisodeChange, markEpisodeAsWatched, syncHistoryToDatabase]);
+  }, [
+    activeAvailableEpisodeCount,
+    handleEpisodeChange,
+    markEpisodeAsWatched,
+    syncHistoryToDatabase,
+  ]);
 
   const handleTranslationSelect = useCallback(
     (translationId: number) => {
@@ -692,23 +704,17 @@ export function InteractivePlayer({
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800"
-            onClick={() => setIsTranslationSidebarOpen(true)}
-          >
-            {activeTranslation
-              ? `Озвучка: ${activeTranslation.title}`
-              : "Выбрать озвучку"}
-          </Button>
-
-          <div className="rounded-full border border-neutral-700 bg-neutral-950/80 px-3 py-1 text-xs font-medium text-neutral-300">
-            {`Просмотрено: ${watchedEpisodesInActiveDub} / ${availableEpisodesLabel}`}
-          </div>
-        </div>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          className="rounded-lg border border-white/10 bg-white/20 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
+          onClick={() => setIsTranslationSidebarOpen(true)}
+        >
+          {activeTranslation
+            ? `Озвучка: ${activeTranslation.title}`
+            : "Выбрать озвучку"}
+        </Button>
 
         {isLoading || errorMessage ? (
           <p className="text-xs text-muted-foreground">

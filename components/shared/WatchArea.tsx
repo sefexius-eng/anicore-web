@@ -22,6 +22,7 @@ interface WatchAreaProps {
   progress: {
     episodesWatched: number;
     lastTime: number;
+    totalAvailable: number | null;
   } | null;
 }
 
@@ -39,55 +40,45 @@ export function WatchArea({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            {"\u0421\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u043e\u043d\u043b\u0430\u0439\u043d"}
+            Смотреть онлайн
           </h2>
         </div>
 
-        <div className="flex flex-col items-start gap-3 sm:items-end">
-          <WatchlistDropdown animeId={malId} />
+        <WatchlistDropdown animeId={malId} />
+      </div>
 
-          <div className="rounded-xl border border-neutral-700/80 bg-neutral-950/80 p-1.5">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="px-2 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-neutral-400">
-                {"\u0421\u0435\u0437\u043e\u043d\u044b \u0444\u0440\u0430\u043d\u0448\u0438\u0437\u044b"}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {seasonLinks.map((season) => {
+          const seasonClasses = cn(
+            "inline-flex items-center rounded-lg border border-white/10 px-4 py-2 text-sm font-medium transition-colors",
+            season.isCurrent
+              ? "bg-white/20 text-white"
+              : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white",
+          );
+
+          if (season.isCurrent) {
+            return (
+              <span
+                key={season.id}
+                className={seasonClasses}
+                title={season.label}
+              >
+                {season.label}
               </span>
+            );
+          }
 
-              <div className="flex flex-wrap gap-1">
-                {seasonLinks.map((season) => {
-                  const seasonClasses = cn(
-                    "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-                    season.isCurrent
-                      ? "bg-cyan-500/20 text-cyan-200"
-                      : "bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white",
-                  );
-
-                  if (season.isCurrent) {
-                    return (
-                      <span
-                        key={season.id}
-                        className={seasonClasses}
-                        title={season.label}
-                      >
-                        {season.label}
-                      </span>
-                    );
-                  }
-
-                  return (
-                    <Link
-                      key={season.id}
-                      href={season.href}
-                      className={seasonClasses}
-                      title={season.label}
-                    >
-                      {season.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
+          return (
+            <Link
+              key={season.id}
+              href={season.href}
+              className={seasonClasses}
+              title={season.label}
+            >
+              {season.label}
+            </Link>
+          );
+        })}
       </div>
 
       <InteractivePlayer

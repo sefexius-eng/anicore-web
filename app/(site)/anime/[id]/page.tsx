@@ -50,6 +50,7 @@ interface AnimeDetailsItem {
 interface AnimeWatchProgress {
   episodesWatched: number;
   lastTime: number;
+  totalAvailable: number | null;
 }
 
 function getRouteAnimeId(value: string | string[] | undefined): number {
@@ -196,6 +197,7 @@ async function getAnimeWatchProgress(
     select: {
       episodesWatched: true,
       lastTime: true,
+      totalAvailable: true,
     },
   });
 

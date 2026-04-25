@@ -13,6 +13,7 @@ interface AnimeWatchShellProps {
   progress: {
     episodesWatched: number;
     lastTime: number;
+    totalAvailable: number | null;
   } | null;
 }
 
