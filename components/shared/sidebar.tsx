@@ -45,7 +45,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex shrink-0 flex-col w-64 h-screen sticky top-0 pt-4 pb-8 bg-background border-r border-white/5">
+    <aside className="flex shrink-0 flex-col w-64 h-screen sticky top-0 pt-4 pb-8 bg-transparent">
       <nav
         aria-label="\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0435 \u043c\u0435\u043d\u044e"
         className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
@@ -58,10 +58,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all",
+                "flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors",
                 isActive
-                  ? "bg-white text-black shadow-[0_12px_30px_rgba(255,255,255,0.12)]"
-                  : "text-slate-300 hover:bg-white/5 hover:text-white",
+                  ? "bg-white/10 text-white font-medium"
+                  : "text-white/70 hover:bg-white/5 hover:text-white",
               )}
             >
               <item.Icon className="size-5 shrink-0" />
