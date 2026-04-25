@@ -18,8 +18,20 @@ model User {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   comments     Comment[]
+  followers    Follows[]      @relation("following")
+  following    Follows[]      @relation("follower")
   watchHistory WatchHistory[]
   watchlists   Watchlist[]
+}
+
+model Follows {
+  followerId  Int
+  followingId Int
+  createdAt   DateTime @default(now())
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
 }
 
 model Comment {
