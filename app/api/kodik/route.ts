@@ -12,7 +12,11 @@ interface KodikSearchResult {
   link?: string;
   translation?: KodikSearchTranslation;
   last_season?: number | string | null;
+  last_episode?: number | string | null;
+  episodes_count?: number | string | null;
   blocked_seasons?: unknown;
+  blocked_episodes?: unknown;
+  episodes?: unknown;
 }
 
 interface KodikSearchResponse {
@@ -36,6 +40,7 @@ function parsePositiveInteger(value: unknown): number | null {
 
   if (typeof value === "string") {
     const parsed = Number(value);
+
     if (Number.isInteger(parsed) && parsed > 0) {
       return parsed;
     }
@@ -44,14 +49,15 @@ function parsePositiveInteger(value: unknown): number | null {
   return null;
 }
 
-function collectBlockedSeasons(value: unknown): Set<number> {
+function collectBlockedEntries(value: unknown): Set<number> {
   const blocked = new Set<number>();
 
   if (Array.isArray(value)) {
-    for (const season of value) {
-      const parsedSeason = parsePositiveInteger(season);
-      if (parsedSeason !== null) {
-        blocked.add(parsedSeason);
+    for (const item of value) {
+      const parsedItem = parsePositiveInteger(item);
+
+      if (parsedItem !== null) {
+        blocked.add(parsedItem);
       }
     }
 
@@ -60,9 +66,10 @@ function collectBlockedSeasons(value: unknown): Set<number> {
 
   if (typeof value === "object" && value !== null) {
     for (const key of Object.keys(value)) {
-      const parsedSeason = parsePositiveInteger(key);
-      if (parsedSeason !== null) {
-        blocked.add(parsedSeason);
+      const parsedItem = parsePositiveInteger(key);
+
+      if (parsedItem !== null) {
+        blocked.add(parsedItem);
       }
     }
   }
@@ -72,13 +79,77 @@ function collectBlockedSeasons(value: unknown): Set<number> {
 
 function buildAvailableSeasons(result: KodikSearchResult): number[] {
   const lastSeason = parsePositiveInteger(result.last_season) ?? 1;
-  const blockedSeasons = collectBlockedSeasons(result.blocked_seasons);
+  const blockedSeasons = collectBlockedEntries(result.blocked_seasons);
 
   const seasons = Array.from({ length: lastSeason }, (_, index) => index + 1).filter(
     (season) => !blockedSeasons.has(season),
   );
 
   return seasons.length > 0 ? seasons : [1];
+}
+
+function collectEpisodeNumbers(value: unknown): number[] {
+  const episodes = new Set<number>();
+
+  const collectFromRecord = (candidate: Record<string, unknown>) => {
+    const directEpisodeNumber =
+      parsePositiveInteger(candidate.episode) ??
+      parsePositiveInteger(candidate.episode_number) ??
+      parsePositiveInteger(candidate.episodeNumber) ??
+      parsePositiveInteger(candidate.number);
+
+    if (directEpisodeNumber !== null) {
+      episodes.add(directEpisodeNumber);
+    }
+
+    for (const key of Object.keys(candidate)) {
+      const parsedKey = parsePositiveInteger(key);
+
+      if (parsedKey !== null) {
+        episodes.add(parsedKey);
+      }
+    }
+  };
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const parsedEpisode = parsePositiveInteger(item);
+
+      if (parsedEpisode !== null) {
+        episodes.add(parsedEpisode);
+        continue;
+      }
+
+      if (typeof item === "object" && item !== null) {
+        collectFromRecord(item as Record<string, unknown>);
+      }
+    }
+  } else if (typeof value === "object" && value !== null) {
+    collectFromRecord(value as Record<string, unknown>);
+  }
+
+  return Array.from(episodes).sort((left, right) => left - right);
+}
+
+function buildAvailableEpisodes(result: KodikSearchResult): number[] {
+  const blockedEpisodes = collectBlockedEntries(result.blocked_episodes);
+  const episodesFromPayload = collectEpisodeNumbers(result.episodes);
+  const maxEpisodeFromProvider =
+    parsePositiveInteger(result.last_episode) ??
+    parsePositiveInteger(result.episodes_count) ??
+    episodesFromPayload[episodesFromPayload.length - 1] ??
+    1;
+
+  const baseEpisodes =
+    episodesFromPayload.length > 0
+      ? episodesFromPayload
+      : Array.from({ length: maxEpisodeFromProvider }, (_, index) => index + 1);
+
+  const availableEpisodes = baseEpisodes.filter(
+    (episode) => !blockedEpisodes.has(episode),
+  );
+
+  return availableEpisodes.length > 0 ? availableEpisodes : [1];
 }
 
 export const dynamic = "force-dynamic";
@@ -231,6 +302,7 @@ export async function GET(request: NextRequest) {
     }
 
     const seasons = buildAvailableSeasons(selectedResult);
+    const availableEpisodes = buildAvailableEpisodes(selectedResult);
     const activeSeason =
       requestedSeason !== null && seasons.includes(requestedSeason)
         ? requestedSeason
@@ -242,6 +314,7 @@ export async function GET(request: NextRequest) {
         typeof selectedResult.translation?.id === "number"
           ? selectedResult.translation.id
           : null,
+      maxAvailableEpisode: availableEpisodes[availableEpisodes.length - 1] ?? null,
       seasons,
       activeSeason,
       translations: Array.from(translationsMap.values()),

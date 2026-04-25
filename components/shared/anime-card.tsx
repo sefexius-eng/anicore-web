@@ -31,7 +31,7 @@ export function AnimeCard({
   posterOverlay,
 }: AnimeCardProps) {
   const posterUrl = getImageUrl(image ?? image_url ?? null);
-  const formattedScore = score || "Нет";
+  const formattedScore = score ?? "Нет";
 
   const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
     const img = event.currentTarget;
@@ -47,21 +47,21 @@ export function AnimeCard({
 
   return (
     <Link href={`/anime/${id}`} className="block">
-      <div className="flex flex-col gap-2 cursor-pointer group">
-        <div className="relative w-full aspect-[16/9] sm:aspect-[3/4] rounded-xl overflow-hidden group shadow-md group-hover:shadow-2xl transition-shadow duration-300">
+      <div className="group flex cursor-pointer flex-col gap-2">
+        <div className="group relative aspect-[16/9] w-full overflow-hidden rounded-xl shadow-md transition-shadow duration-300 group-hover:shadow-2xl sm:aspect-[3/4]">
           <img
             src={posterUrl}
             alt={title || "Anime Poster"}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
             referrerPolicy="no-referrer"
             onError={handleImageError}
           />
 
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-            <div className="bg-black/60 rounded-full p-3 backdrop-blur-sm transform scale-75 group-hover:scale-100 transition-transform duration-300">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+            <div className="rounded-full bg-black/60 p-3 backdrop-blur-sm transition-transform duration-300 group-hover:scale-100 scale-75">
               <svg
-                className="w-8 h-8 text-white fill-current"
+                className="h-8 w-8 fill-current text-white"
                 viewBox="0 0 24 24"
                 aria-hidden="true"
               >
@@ -79,7 +79,7 @@ export function AnimeCard({
 
         <div>
           <h3
-            className="text-sm font-semibold text-white line-clamp-2 group-hover:text-blue-400 transition-colors"
+            className="line-clamp-2 text-sm font-semibold text-white transition-colors group-hover:text-blue-400"
             title={title}
           >
             {title}

@@ -26,6 +26,7 @@ interface KodikPlayerResponse {
   link?: string;
   translations?: TranslationOption[];
   activeTranslationId?: number | null;
+  maxAvailableEpisode?: number | null;
   error?: string;
 }
 
@@ -56,6 +57,7 @@ const IFRAME_HISTORY_SAVE_GAP_SECONDS = Math.max(
 );
 const DATABASE_HISTORY_SAVE_GAP_SECONDS = 20;
 const WATCHED_EPISODE_PROGRESS_THRESHOLD = 0.85;
+const PREFERRED_DUB_STORAGE_KEY = "preferred_dub";
 
 function isTranslationOption(value: unknown): value is TranslationOption {
   if (typeof value !== "object" || value === null) {
@@ -106,6 +108,61 @@ function normalizeNonNegativeNumber(value: unknown): number | null {
   }
 
   return Math.max(0, numericValue);
+}
+
+function readPreferredDubTitle(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const storedTitle = window.localStorage.getItem(PREFERRED_DUB_STORAGE_KEY)?.trim();
+    return storedTitle ? storedTitle : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistPreferredDubTitle(title: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(PREFERRED_DUB_STORAGE_KEY, title.trim());
+  } catch {
+    // Ignore localStorage errors in restricted browsers.
+  }
+}
+
+function normalizeTranslations(value: unknown): TranslationOption[] {
+  return Array.isArray(value)
+    ? value
+        .filter(isTranslationOption)
+        .sort(
+          (left, right) => getDubPriority(left.title) - getDubPriority(right.title),
+        )
+    : [];
+}
+
+function findPreferredTranslation(
+  translations: TranslationOption[],
+): TranslationOption | null {
+  const preferredDubTitle = readPreferredDubTitle();
+
+  if (!preferredDubTitle) {
+    return null;
+  }
+
+  const normalizedPreferredDubTitle = preferredDubTitle.toLocaleLowerCase();
+
+  return (
+    translations.find(
+      (translation) =>
+        translation.title.trim().toLocaleLowerCase() ===
+        normalizedPreferredDubTitle,
+    ) ?? null
+  );
 }
 
 function clampEpisodeNumber(
@@ -275,6 +332,13 @@ export function InteractivePlayer({
   const [startFromSeconds, setStartFromSeconds] = useState(
     initialStartFromSeconds,
   );
+  const [completedEpisodeState, setCompletedEpisodeState] = useState(() => ({
+    historyId: history?.id ?? null,
+    value: initialCompletedEpisodes,
+  }));
+  const [maxAvailableEpisode, setMaxAvailableEpisode] = useState<number | null>(
+    null,
+  );
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -285,6 +349,17 @@ export function InteractivePlayer({
   const completedEpisodesRef = useRef(initialCompletedEpisodes);
   const currentTimeRef = useRef(initialStartFromSeconds);
   const durationSecondsRef = useRef(0);
+  const completedEpisodes =
+    completedEpisodeState.historyId === (history?.id ?? null)
+      ? Math.max(initialCompletedEpisodes, completedEpisodeState.value)
+      : initialCompletedEpisodes;
+  const activeEpisodesLimit = maxAvailableEpisode ?? episodesTotal;
+  const watchedEpisodesInActiveDub =
+    typeof maxAvailableEpisode === "number"
+      ? Math.min(completedEpisodes, maxAvailableEpisode)
+      : completedEpisodes;
+  const availableEpisodesLabel =
+    typeof maxAvailableEpisode === "number" ? String(maxAvailableEpisode) : "?";
 
   const iframeSrc = useMemo(() => {
     if (!playerLink) {
@@ -303,9 +378,13 @@ export function InteractivePlayer({
   }, [history]);
 
   useEffect(() => {
+    completedEpisodesRef.current = initialCompletedEpisodes;
+  }, [history?.id, initialCompletedEpisodes]);
+
+  useEffect(() => {
     const clampedEpisodeNumber = clampEpisodeNumber(
       currentEpisodeRef.current,
-      episodesTotal,
+      activeEpisodesLimit,
     );
 
     if (clampedEpisodeNumber === currentEpisodeRef.current) {
@@ -314,7 +393,7 @@ export function InteractivePlayer({
 
     currentEpisodeRef.current = clampedEpisodeNumber;
     setCurrentEpisodeNumber(clampedEpisodeNumber);
-  }, [episodesTotal]);
+  }, [activeEpisodesLimit]);
 
   useEffect(() => {
     lastSavedTimeRef.current = 0;
@@ -351,6 +430,13 @@ export function InteractivePlayer({
       }
 
       completedEpisodesRef.current = episodeNumber;
+      setCompletedEpisodeState((currentState) => ({
+        historyId: currentHistory.id,
+        value:
+          currentState.historyId === currentHistory.id
+            ? Math.max(currentState.value, episodeNumber)
+            : episodeNumber,
+      }));
       lastDatabaseSavedTimeRef.current = currentTime;
 
       void syncHistoryToDatabase(
@@ -364,7 +450,10 @@ export function InteractivePlayer({
 
   const handleEpisodeChange = useCallback(
     (rawEpisodeNumber: number) => {
-      const nextEpisodeNumber = clampEpisodeNumber(rawEpisodeNumber, episodesTotal);
+      const nextEpisodeNumber = clampEpisodeNumber(
+        rawEpisodeNumber,
+        activeEpisodesLimit,
+      );
 
       if (nextEpisodeNumber === currentEpisodeRef.current) {
         return;
@@ -378,7 +467,7 @@ export function InteractivePlayer({
       lastSavedTimeRef.current = 0;
       lastDatabaseSavedTimeRef.current = 0;
     },
-    [episodesTotal],
+    [activeEpisodesLimit],
   );
 
   const loadPlayer = useCallback(
@@ -390,6 +479,7 @@ export function InteractivePlayer({
       setIsLoading(true);
       setErrorMessage(null);
       setPlayerLink(null);
+      setMaxAvailableEpisode(null);
 
       if (translationId === null) {
         setTranslations([]);
@@ -397,45 +487,61 @@ export function InteractivePlayer({
       }
 
       try {
-        const searchParams = new URLSearchParams({
-          malId: String(malId),
-        });
+        const requestPlayerData = async (
+          requestedTranslationId: number | null,
+        ): Promise<KodikPlayerResponse> => {
+          const searchParams = new URLSearchParams({
+            malId: String(malId),
+          });
 
-        if (typeof translationId === "number") {
-          searchParams.set("translation_id", String(translationId));
-        }
+          if (typeof requestedTranslationId === "number") {
+            searchParams.set("translation_id", String(requestedTranslationId));
+          }
 
-        const response = await fetch(`/api/kodik?${searchParams.toString()}`, {
-          method: "GET",
-          signal: controller.signal,
-        });
+          const response = await fetch(`/api/kodik?${searchParams.toString()}`, {
+            method: "GET",
+            signal: controller.signal,
+          });
 
-        const data = (await response.json()) as KodikPlayerResponse;
+          const data = (await response.json()) as KodikPlayerResponse;
 
-        if (!response.ok || !data.link) {
-          throw new Error(
-            data.error ??
-              `Kodik proxy request failed with status ${response.status}.`,
-          );
-        }
+          if (!response.ok || !data.link) {
+            throw new Error(
+              data.error ??
+                `Kodik proxy request failed with status ${response.status}.`,
+            );
+          }
 
-        const availableTranslations = Array.isArray(data.translations)
-          ? data.translations
-              .filter(isTranslationOption)
-              .sort(
-                (left, right) =>
-                  getDubPriority(left.title) - getDubPriority(right.title),
-              )
-          : [];
+          return data;
+        };
 
-        const resolvedActiveTranslationId =
+        let data = await requestPlayerData(translationId);
+        let availableTranslations = normalizeTranslations(data.translations);
+        let resolvedActiveTranslationId =
           typeof data.activeTranslationId === "number"
             ? data.activeTranslationId
-            : availableTranslations[0]?.id ?? null;
+            : translationId ?? availableTranslations[0]?.id ?? null;
+
+        if (translationId === null) {
+          const preferredTranslation = findPreferredTranslation(availableTranslations);
+
+          if (
+            preferredTranslation &&
+            preferredTranslation.id !== resolvedActiveTranslationId
+          ) {
+            data = await requestPlayerData(preferredTranslation.id);
+            availableTranslations = normalizeTranslations(data.translations);
+            resolvedActiveTranslationId =
+              typeof data.activeTranslationId === "number"
+                ? data.activeTranslationId
+                : preferredTranslation.id;
+          }
+        }
 
         setTranslations(availableTranslations);
         setActiveTranslationId(resolvedActiveTranslationId);
-        setPlayerLink(data.link);
+        setMaxAvailableEpisode(normalizePositiveInteger(data.maxAvailableEpisode));
+        setPlayerLink(data.link ?? null);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -444,7 +550,7 @@ export function InteractivePlayer({
         setErrorMessage(
           error instanceof Error
             ? error.message
-            : "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u043f\u043b\u0435\u0435\u0440 Kodik.",
+            : "Не удалось загрузить плеер Kodik.",
         );
         setPlayerLink(null);
       } finally {
@@ -563,12 +669,20 @@ export function InteractivePlayer({
 
   const handleTranslationSelect = useCallback(
     (translationId: number) => {
+      const selectedTranslation = translations.find(
+        (translation) => translation.id === translationId,
+      );
+
+      if (selectedTranslation) {
+        persistPreferredDubTitle(selectedTranslation.title);
+      }
+
       setStartFromSeconds(currentTimeRef.current);
       setActiveTranslationId(translationId);
       setIsTranslationSidebarOpen(false);
       void loadPlayer(translationId);
     },
-    [loadPlayer],
+    [loadPlayer, translations],
   );
 
   const activeTranslation =
@@ -579,22 +693,26 @@ export function InteractivePlayer({
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800"
-          onClick={() => setIsTranslationSidebarOpen(true)}
-        >
-          {activeTranslation
-            ? `\u041e\u0437\u0432\u0443\u0447\u043a\u0430: ${activeTranslation.title}`
-            : "\u0412\u044b\u0431\u0440\u0430\u0442\u044c \u043e\u0437\u0432\u0443\u0447\u043a\u0443"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            className="border border-neutral-700 bg-neutral-900/90 text-neutral-100 hover:bg-neutral-800"
+            onClick={() => setIsTranslationSidebarOpen(true)}
+          >
+            {activeTranslation
+              ? `Озвучка: ${activeTranslation.title}`
+              : "Выбрать озвучку"}
+          </Button>
+
+          <div className="rounded-full border border-neutral-700 bg-neutral-950/80 px-3 py-1 text-xs font-medium text-neutral-300">
+            {`Просмотрено: ${watchedEpisodesInActiveDub} / ${availableEpisodesLabel}`}
+          </div>
+        </div>
 
         {isLoading || errorMessage ? (
           <p className="text-xs text-muted-foreground">
-            {isLoading
-              ? "\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u043f\u043b\u0435\u0435\u0440\u0430..."
-              : "\u041f\u043b\u0435\u0435\u0440 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d"}
+            {isLoading ? "Загрузка плеера..." : "Плеер недоступен"}
           </p>
         ) : null}
       </div>
@@ -636,9 +754,8 @@ export function InteractivePlayer({
           ) : (
             <div className="flex h-full w-full items-center justify-center p-6 text-sm text-muted-foreground">
               {isLoading
-                ? "\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u043f\u043b\u0435\u0435\u0440\u0430..."
-                : errorMessage ??
-                  "\u041f\u043b\u0435\u0435\u0440 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d."}
+                ? "Загрузка плеера..."
+                : errorMessage ?? "Плеер не найден."}
             </div>
           )}
         </div>

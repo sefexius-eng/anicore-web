@@ -82,7 +82,7 @@ function ProfileShelf({
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-10 text-center text-sm text-slate-400">
-          {"\u041f\u043e\u043a\u0430 \u043f\u0443\u0441\u0442\u043e."}
+          Пока пусто.
         </div>
       )}
     </section>
@@ -99,11 +99,9 @@ function AchievementsShelf({ items }: { items: UserAchievementView[] }) {
   return (
     <section className="space-y-6 rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.32)] backdrop-blur-sm">
       <div className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.18em] text-sky-300">
-          {"\u041d\u0430\u0433\u0440\u0430\u0434\u044b"}
-        </p>
+        <p className="text-xs uppercase tracking-[0.18em] text-sky-300">Награды</p>
         <h2 className="text-2xl font-semibold tracking-tight text-white">
-          {"\u0414\u043e\u0441\u0442\u0438\u0436\u0435\u043d\u0438\u044f AniMirok"}
+          Достижения AniMirok
         </h2>
       </div>
 
@@ -126,8 +124,7 @@ function AchievementsShelf({ items }: { items: UserAchievementView[] }) {
                   </p>
                 </div>
                 <p className="text-xs uppercase tracking-[0.16em] text-slate-400">
-                  {"\u041e\u0442\u043a\u0440\u044b\u0442\u043e"}{" "}
-                  {formatAchievementDate(achievement.unlockedAt)}
+                  Открыто {formatAchievementDate(achievement.unlockedAt)}
                 </p>
               </div>
             </article>
@@ -135,9 +132,8 @@ function AchievementsShelf({ items }: { items: UserAchievementView[] }) {
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-10 text-center text-sm text-slate-400">
-          {
-            "\u041f\u043e\u043a\u0430 \u0431\u0435\u0437 \u043d\u0430\u0433\u0440\u0430\u0434. \u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0430\u0439\u0442\u0435 \u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u0442\u0430\u0439\u0442\u043b\u044b \u0438 \u043e\u0442\u043a\u0440\u044b\u0432\u0430\u0442\u044c \u043d\u043e\u0432\u044b\u0435 \u0434\u043e\u0441\u0442\u0438\u0436\u0435\u043d\u0438\u044f."
-          }
+          Пока без наград. Продолжайте смотреть тайтлы и открывать новые
+          достижения.
         </div>
       )}
     </section>
@@ -175,42 +171,42 @@ interface ProfilePageViewProps {
 export function ProfilePageView({
   data,
   editableAvatar = false,
-  eyebrow = "\u041f\u0440\u043e\u0444\u0438\u043b\u044c AniMirok",
+  eyebrow = "Профиль AniMirok",
   headerAction,
 }: ProfilePageViewProps) {
   const avatarImage = data.image?.trim() || "/default-avatar.jpg";
   const metrics = [
     {
       Icon: Award,
-      label: "\u0420\u0430\u043d\u0433",
+      label: "Ранг",
       value: data.rank,
       toneClass:
         "from-amber-300/35 to-orange-500/20 text-amber-100 ring-1 ring-amber-300/30",
     },
     {
       Icon: Tv2,
-      label: "\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e",
-      value: `${data.completedCount} \u0442\u0430\u0439\u0442\u043b\u043e\u0432`,
+      label: "Просмотрено",
+      value: `${data.completedCount} тайтлов`,
       toneClass:
         "from-sky-300/35 to-cyan-500/20 text-sky-100 ring-1 ring-sky-300/30",
     },
     {
       Icon: Clock3,
-      label: "\u0412\u0440\u0435\u043c\u044f",
+      label: "Время",
       value: data.timeSpentLabel,
       toneClass:
         "from-fuchsia-300/35 to-violet-500/20 text-fuchsia-100 ring-1 ring-fuchsia-300/30",
     },
     {
       Icon: Users,
-      label: "\u041f\u043e\u0434\u043f\u0438\u0441\u0447\u0438\u043a\u0438",
+      label: "Подписчики",
       value: String(data.followersCount),
       toneClass:
         "from-emerald-300/35 to-teal-500/20 text-emerald-100 ring-1 ring-emerald-300/30",
     },
     {
       Icon: UserPlus,
-      label: "\u041f\u043e\u0434\u043f\u0438\u0441\u043a\u0438",
+      label: "Подписки",
       value: String(data.followingCount),
       toneClass:
         "from-rose-300/35 to-pink-500/20 text-rose-100 ring-1 ring-rose-300/30",
@@ -276,8 +272,8 @@ export function ProfilePageView({
       <AchievementsShelf items={data.achievements} />
 
       <ProfileShelf
-        eyebrow="\u0418\u0441\u0442\u043e\u0440\u0438\u044f \u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u043e\u0432"
-        title="\u041d\u0435\u0434\u0430\u0432\u043d\u043e \u043e\u0442\u043a\u0440\u044b\u0442\u044b\u0435 \u0442\u0430\u0439\u0442\u043b\u044b"
+        eyebrow="История просмотров"
+        title="Недавно открытые тайтлы"
         items={data.historyItems}
       />
 
