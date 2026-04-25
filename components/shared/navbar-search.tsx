@@ -395,7 +395,7 @@ export function NavbarSearch() {
         }
       `}</style>
 
-      <form onSubmit={handleSearch} className="mx-4 flex w-full max-w-[660px] gap-3">
+      <form onSubmit={handleSearch} className="flex w-full min-w-0 items-center gap-3">
         <div ref={searchContainerRef} className="relative flex min-w-0 flex-1">
           <input
             aria-label="Поиск аниме"
@@ -405,8 +405,8 @@ export function NavbarSearch() {
             aria-haspopup="listbox"
             aria-activedescendant={activeDescendantId}
             role="combobox"
-            placeholder="Найти тайтл, жанр или студию"
-            className="flex-1 rounded-l-full border border-[#303030] bg-[#121212] px-4 py-2 text-white placeholder:text-[#717171] focus:border-blue-500 focus:outline-none"
+            placeholder="Введите запрос"
+            className="flex-1 rounded-l-full border border-[#303030] bg-[#121212] px-5 py-2.5 text-white placeholder:text-[#717171] focus:border-blue-500 focus:outline-none"
             value={query}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
@@ -416,9 +416,11 @@ export function NavbarSearch() {
           <button
             type="submit"
             aria-label="Поиск"
-            className="rounded-r-full border border-[#303030] border-l-0 bg-[#222222] px-5 py-2 text-white transition-colors hover:bg-[#303030]"
+            className="group rounded-r-full border border-[#303030] border-l-0 bg-[#222222] px-4 py-2 text-white transition-colors hover:bg-[#303030]"
           >
-            <Search className="size-5" />
+            <span className="flex items-center justify-center rounded-full p-2 transition-colors group-hover:bg-white/10">
+              <Search className="size-6" />
+            </span>
           </button>
 
           {isDropdownVisible ? (
@@ -502,25 +504,27 @@ export function NavbarSearch() {
 
         {isSpeechRecognitionSupported ? (
           <button
-          type="button"
-          aria-label={
-            isListening ? "Остановить голосовой поиск" : "Начать голосовой поиск"
-          }
-          aria-pressed={isListening}
-          title={
-            isSpeechRecognitionSupported
-              ? "Голосовой поиск"
-              : "Ваш браузер не поддерживает голосовой поиск"
-          }
-          className={cn(
-            "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#303030] text-white transition-colors focus:outline-none",
-            isListening
-              ? "animate-pulse border-red-500 bg-red-600 hover:bg-red-500"
-              : "bg-[#1a1a1a] hover:bg-[#2b2b2b]",
-          )}
-          onClick={handleMicrophoneClick}
-        >
-          <Mic className="size-5" />
+            type="button"
+            aria-label={
+              isListening
+                ? "Остановить голосовой поиск"
+                : "Начать голосовой поиск"
+            }
+            aria-pressed={isListening}
+            title={
+              isSpeechRecognitionSupported
+                ? "Голосовой поиск"
+                : "Ваш браузер не поддерживает голосовой поиск"
+            }
+            className={cn(
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#303030] p-2 text-white transition-colors focus:outline-none",
+              isListening
+                ? "animate-pulse border-red-500 bg-red-600 hover:bg-red-500"
+                : "bg-[#1a1a1a] hover:bg-white/10",
+            )}
+            onClick={handleMicrophoneClick}
+          >
+            <Mic className="size-6" />
           </button>
         ) : null}
       </form>

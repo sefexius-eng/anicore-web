@@ -45,10 +45,10 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex shrink-0 flex-col w-64 h-screen sticky top-0 pt-4 pb-8 bg-transparent">
+    <aside className="sticky top-[64px] flex h-[calc(100vh-64px)] w-64 shrink-0 flex-col overflow-y-auto bg-transparent pb-8 pt-4">
       <nav
         aria-label="\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0435 \u043c\u0435\u043d\u044e"
-        className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        className="flex flex-1 flex-col gap-1 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
       >
         {navigationItems.map((item) => {
           const isActive = item.isActive(pathname);

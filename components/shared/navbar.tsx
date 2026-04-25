@@ -11,9 +11,9 @@ export async function NavbarShell() {
   const session = await auth();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0f0f0f]/95 backdrop-blur-sm">
-      <div className="mx-auto grid w-full max-w-[1600px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
-        <div className="flex min-w-0 items-center">
+    <header className="sticky top-0 z-50 border-b border-white/5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="grid h-16 w-full grid-cols-[1fr_minmax(0,720px)_1fr] items-center gap-3 px-4 lg:px-6">
+        <div className="flex min-w-0 items-center justify-start">
           <Link
             href="/"
             className="bg-gradient-to-r from-cyan-400 to-blue-600 bg-clip-text text-2xl font-black tracking-tighter text-transparent transition-opacity hover:opacity-85"
@@ -22,11 +22,11 @@ export async function NavbarShell() {
           </Link>
         </div>
 
-        <div className="flex min-w-0 justify-center">
+        <div className="flex min-w-0 items-center justify-center">
           <NavbarSearch />
         </div>
 
-        <div className="flex shrink-0 items-center justify-end">
+        <div className="flex min-w-0 items-center justify-end">
           {session ? (
             <UserDropdown
               name={session.user?.name ?? null}
