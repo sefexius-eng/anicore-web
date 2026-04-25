@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { User } from "lucide-react";
+import { Bell, User } from "lucide-react";
 
 import { NavbarSearch } from "@/components/shared/navbar-search";
 import { UserDropdown } from "@/components/shared/user-dropdown";
@@ -26,12 +26,25 @@ export async function NavbarShell() {
           <NavbarSearch />
         </div>
 
-        <div className="flex min-w-0 items-center justify-end">
+        <div className="flex min-w-0 items-center justify-end gap-2">
           {session ? (
-            <UserDropdown
-              name={session.user?.name ?? null}
-              email={session.user?.email ?? null}
-            />
+            <>
+              <Link
+                href="/notifications"
+                aria-label="\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f"
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "icon-lg" }),
+                  "rounded-full border border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/10 hover:text-white",
+                )}
+              >
+                <Bell className="size-5" />
+              </Link>
+
+              <UserDropdown
+                name={session.user?.name ?? null}
+                email={session.user?.email ?? null}
+              />
+            </>
           ) : (
             <Link
               href="/login?callbackUrl=/"

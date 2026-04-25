@@ -33,6 +33,34 @@ export interface AnimeFranchiseSeasonItem {
   title: string;
 }
 
+export interface AnimeFranchiseGuideItem {
+  id: number;
+  order: number;
+  title: string;
+  kind: string;
+  year: number | null;
+  href: string;
+  isCurrent: boolean;
+  relationLabels: string[];
+}
+
+export interface AnimeFranchiseGuide {
+  currentId: number;
+  watchOrder: AnimeFranchiseGuideItem[];
+  movies: AnimeFranchiseGuideItem[];
+  ova: AnimeFranchiseGuideItem[];
+  spinOffs: AnimeFranchiseGuideItem[];
+}
+
+export interface AnimeEpisodeSnapshot {
+  id: number;
+  title: string;
+  status: string | null;
+  episodesTotal: number | null;
+  episodesAired: number | null;
+  nextEpisodeAt: string | null;
+}
+
 interface ShikimoriGenre {
   id?: number | null;
   name?: string | null;
@@ -41,16 +69,26 @@ interface ShikimoriGenre {
 
 interface ShikimoriFranchiseNode {
   id?: number;
+  date?: number | null;
+  image_url?: string | null;
   kind?: string | null;
   name?: string | null;
   russian?: string | null;
+  url?: string | null;
+  weight?: number | null;
   year?: number | null;
+}
+
+interface ShikimoriFranchiseLink {
+  source_id?: number | null;
+  target_id?: number | null;
+  relation?: string | null;
 }
 
 interface ShikimoriFranchiseResponse {
   current_id?: number;
   nodes?: ShikimoriFranchiseNode[];
-  links?: unknown[];
+  links?: ShikimoriFranchiseLink[];
 }
 
 export interface ShikimoriAnimeResponse {
@@ -58,6 +96,10 @@ export interface ShikimoriAnimeResponse {
   name: string;
   russian?: string | null;
   score?: string | number | null;
+  status?: string | null;
+  episodes?: number | null;
+  episodes_aired?: number | null;
+  next_episode_at?: string | null;
   description?: string | null;
   description_html?: string | null;
   genres?: ShikimoriGenre[];
@@ -428,6 +470,218 @@ export async function searchAnime(
   return visiblePayload.map(toAnimeShowcaseItem);
 }
 
+const FRANCHISE_RELATION_LABELS: Record<string, string> = {
+  sequel: "Продолжение",
+  prequel: "Предыстория",
+  spin_off: "Спин-офф",
+  parent_story: "Основная история",
+  side_story: "Побочная история",
+  summary: "Пересказ",
+  alternative_version: "Альтернативная версия",
+  character: "История персонажей",
+  full_story: "Полная история",
+  other: "Связанный тайтл",
+};
+
+const SPIN_OFF_RELATIONS = new Set([
+  "spin_off",
+  "parent_story",
+  "side_story",
+  "character",
+]);
+
+function normalizeFranchiseValue(value: string | null | undefined): string {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function isFranchiseTvKind(kind: string | null | undefined): boolean {
+  const normalizedKind = normalizeFranchiseValue(kind);
+
+  return (
+    normalizedKind === "tv" ||
+    normalizedKind === "tv СЃРµСЂРёР°Р»" ||
+    normalizedKind === "tv сериал" ||
+    normalizedKind === "tv series"
+  );
+}
+
+function isFranchiseMovieKind(kind: string | null | undefined): boolean {
+  const normalizedKind = normalizeFranchiseValue(kind);
+
+  return normalizedKind === "movie" || normalizedKind === "фильм";
+}
+
+function isFranchiseOvaKind(kind: string | null | undefined): boolean {
+  const normalizedKind = normalizeFranchiseValue(kind);
+
+  return (
+    normalizedKind === "ova" ||
+    normalizedKind === "ona" ||
+    normalizedKind === "special" ||
+    normalizedKind === "спецвыпуск" ||
+    normalizedKind === "tv special" ||
+    normalizedKind === "tv спецвыпуск"
+  );
+}
+
+function buildRelationMap(
+  links: ShikimoriFranchiseLink[] | undefined,
+): Map<number, Set<string>> {
+  const relationMap = new Map<number, Set<string>>();
+
+  if (!Array.isArray(links)) {
+    return relationMap;
+  }
+
+  links.forEach((link) => {
+    const relation = normalizeFranchiseValue(link.relation);
+
+    if (!relation) {
+      return;
+    }
+
+    [link.source_id, link.target_id].forEach((animeId) => {
+      if (typeof animeId !== "number") {
+        return;
+      }
+
+      const relations = relationMap.get(animeId) ?? new Set<string>();
+      relations.add(relation);
+      relationMap.set(animeId, relations);
+    });
+  });
+
+  return relationMap;
+}
+
+function getFranchiseNodeDate(node: ShikimoriFranchiseNode): number {
+  if (typeof node.date === "number") {
+    return node.date;
+  }
+
+  if (typeof node.year === "number") {
+    return new Date(`${node.year}-01-01T00:00:00.000Z`).getTime() / 1000;
+  }
+
+  return Number.MAX_SAFE_INTEGER;
+}
+
+function sortFranchiseNodes(
+  left: ShikimoriFranchiseNode,
+  right: ShikimoriFranchiseNode,
+): number {
+  const dateDelta = getFranchiseNodeDate(left) - getFranchiseNodeDate(right);
+
+  if (dateDelta !== 0) {
+    return dateDelta;
+  }
+
+  const leftWeight = typeof left.weight === "number" ? left.weight : 0;
+  const rightWeight = typeof right.weight === "number" ? right.weight : 0;
+
+  if (leftWeight !== rightWeight) {
+    return rightWeight - leftWeight;
+  }
+
+  return (left.name ?? "").localeCompare(right.name ?? "", "ru");
+}
+
+function toFranchiseGuideItem(
+  node: ShikimoriFranchiseNode & { id: number },
+  currentId: number,
+  relationMap: Map<number, Set<string>>,
+  order: number,
+): AnimeFranchiseGuideItem {
+  const relations = Array.from(relationMap.get(node.id) ?? []);
+  const relationLabels = relations
+    .map((relation) => FRANCHISE_RELATION_LABELS[relation] ?? relation)
+    .filter(Boolean);
+
+  return {
+    id: node.id,
+    order,
+    title: node.russian?.trim() || node.name?.trim() || `Anime #${node.id}`,
+    kind: node.kind?.trim() || "Аниме",
+    year: typeof node.year === "number" ? node.year : null,
+    href: `/anime/${node.id}`,
+    isCurrent: node.id === currentId,
+    relationLabels: Array.from(new Set(relationLabels)),
+  };
+}
+
+function hasSpinOffRelation(
+  node: ShikimoriFranchiseNode & { id: number },
+  relationMap: Map<number, Set<string>>,
+): boolean {
+  const relations = relationMap.get(node.id);
+
+  if (!relations) {
+    return false;
+  }
+
+  return Array.from(relations).some((relation) => SPIN_OFF_RELATIONS.has(relation));
+}
+
+function dedupeFranchiseItems(
+  items: AnimeFranchiseGuideItem[],
+): AnimeFranchiseGuideItem[] {
+  return Array.from(new Map(items.map((item) => [item.id, item])).values()).map(
+    (item, index) => ({
+      ...item,
+      order: index + 1,
+    }),
+  );
+}
+
+export async function getAnimeFranchiseGuide(
+  id: number,
+  options: ShikimoriFetchOptions = {},
+): Promise<AnimeFranchiseGuide> {
+  const payload = await fetchShikimoriJson<ShikimoriFranchiseResponse>(
+    `/animes/${id}/franchise`,
+    options,
+  );
+  const relationMap = buildRelationMap(payload.links);
+  const currentId = typeof payload.current_id === "number" ? payload.current_id : id;
+  const nodes = Array.isArray(payload.nodes)
+    ? payload.nodes
+        .filter(
+          (node): node is ShikimoriFranchiseNode & { id: number } =>
+            typeof node.id === "number",
+        )
+        .sort(sortFranchiseNodes)
+    : [];
+  const fallbackNode: ShikimoriFranchiseNode & { id: number } = {
+    id,
+    name: `Anime #${id}`,
+    kind: "tv",
+    year: null,
+  };
+  const normalizedNodes = nodes.length > 0 ? nodes : [fallbackNode];
+  const allItems = normalizedNodes.map((node, index) =>
+    toFranchiseGuideItem(node, currentId, relationMap, index + 1),
+  );
+  const itemById = new Map(allItems.map((item) => [item.id, item]));
+  const buildItems = (
+    predicate: (node: ShikimoriFranchiseNode & { id: number }) => boolean,
+  ) =>
+    dedupeFranchiseItems(
+      normalizedNodes
+        .filter(predicate)
+        .map((node) => itemById.get(node.id))
+        .filter((item): item is AnimeFranchiseGuideItem => Boolean(item)),
+    );
+  const watchOrder = buildItems((node) => isFranchiseTvKind(node.kind));
+
+  return {
+    currentId,
+    watchOrder: watchOrder.length > 0 ? watchOrder : dedupeFranchiseItems(allItems),
+    movies: buildItems((node) => isFranchiseMovieKind(node.kind)),
+    ova: buildItems((node) => isFranchiseOvaKind(node.kind)),
+    spinOffs: buildItems((node) => hasSpinOffRelation(node, relationMap)),
+  };
+}
+
 function isTvKind(kind: string | null | undefined): boolean {
   if (typeof kind !== "string") {
     return false;
@@ -495,4 +749,50 @@ export async function getAnimeFranchiseSeasons(
     year: node.year,
     title: node.title,
   }));
+}
+
+function toEpisodeSnapshot(payload: ShikimoriAnimeResponse): AnimeEpisodeSnapshot {
+  return {
+    id: payload.id,
+    title: payload.russian?.trim() || payload.name?.trim() || `Anime #${payload.id}`,
+    status: payload.status?.trim() || null,
+    episodesTotal:
+      typeof payload.episodes === "number" && Number.isFinite(payload.episodes)
+        ? payload.episodes
+        : null,
+    episodesAired:
+      typeof payload.episodes_aired === "number" &&
+      Number.isFinite(payload.episodes_aired)
+        ? payload.episodes_aired
+        : null,
+    nextEpisodeAt: payload.next_episode_at?.trim() || null,
+  };
+}
+
+export async function getAnimeEpisodeSnapshots(
+  animeIds: number[],
+): Promise<Map<number, AnimeEpisodeSnapshot>> {
+  const uniqueIds = Array.from(
+    new Set(
+      animeIds.filter((animeId) => Number.isInteger(animeId) && animeId > 0),
+    ),
+  );
+  const snapshotMap = new Map<number, AnimeEpisodeSnapshot>();
+
+  for (let index = 0; index < uniqueIds.length; index += 50) {
+    const batch = uniqueIds.slice(index, index + 50);
+    const searchParams = new URLSearchParams({
+      ids: batch.join(","),
+      limit: "50",
+    });
+    const animeList = await fetchShikimoriAnimeList(
+      `/animes?${searchParams.toString()}`,
+    );
+
+    animeList.forEach((anime) => {
+      snapshotMap.set(anime.id, toEpisodeSnapshot(anime));
+    });
+  }
+
+  return snapshotMap;
 }

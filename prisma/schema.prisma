@@ -9,21 +9,23 @@ datasource db {
 }
 
 model User {
-  id           Int            @id @default(autoincrement())
-  email        String         @unique
-  name         String
-  image        String?
-  password     String
-  birthDate    DateTime
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  achievements UserAchievement[]
-  comments     Comment[]
-  followers    Follows[]      @relation("following")
-  following    Follows[]      @relation("follower")
-  reviews      Review[]
-  watchHistory WatchHistory[]
-  watchlists   Watchlist[]
+  id                 Int                 @id @default(autoincrement())
+  email              String              @unique
+  name               String
+  image              String?
+  password           String
+  birthDate          DateTime
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  achievements       UserAchievement[]
+  comments           Comment[]
+  followers          Follows[]           @relation("following")
+  following          Follows[]           @relation("follower")
+  reviews            Review[]
+  watchHistory       WatchHistory[]
+  watchPartyMessages WatchPartyMessage[]
+  watchPartyRooms    WatchPartyRoom[]    @relation("WatchPartyHost")
+  watchlists         Watchlist[]
 }
 
 model Follows {
@@ -94,4 +96,35 @@ model Watchlist {
 
   @@unique([userId, animeId])
   @@index([animeId])
+}
+
+model WatchPartyRoom {
+  id             String              @id @default(cuid())
+  animeId        Int
+  hostId         Int
+  title          String
+  description    String?
+  startsAt       DateTime?
+  isOpen         Boolean             @default(true)
+  lastActivityAt DateTime            @default(now())
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  host           User                @relation("WatchPartyHost", fields: [hostId], references: [id], onDelete: Cascade)
+  messages       WatchPartyMessage[]
+
+  @@index([animeId, lastActivityAt])
+  @@index([hostId, createdAt])
+}
+
+model WatchPartyMessage {
+  id        String         @id @default(cuid())
+  roomId    String
+  userId    Int
+  content   String
+  createdAt DateTime       @default(now())
+  room      WatchPartyRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+  @@index([userId, createdAt])
 }

@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { History, House, Tv2, User, Users, type LucideIcon } from "lucide-react";
+import {
+  Bell,
+  History,
+  House,
+  Tv2,
+  User,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -38,6 +46,12 @@ const navigationItems: NavigationItem[] = [
     label: "\u0418\u0441\u0442\u043e\u0440\u0438\u044f",
     Icon: History,
     isActive: (pathname) => pathname.startsWith("/history"),
+  },
+  {
+    href: "/notifications",
+    label: "\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f",
+    Icon: Bell,
+    isActive: (pathname) => pathname.startsWith("/notifications"),
   },
   {
     href: "/profile",
@@ -84,7 +98,7 @@ export function Sidebar() {
         aria-label="\u041c\u043e\u0431\u0438\u043b\u044c\u043d\u043e\u0435 \u043c\u0435\u043d\u044e"
         className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-background/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 shadow-[0_-18px_40px_rgba(0,0,0,0.28)] backdrop-blur lg:hidden"
       >
-        <div className="grid grid-cols-5 gap-1">
+        <div className="grid grid-cols-6 gap-1">
           {navigationItems.map((item) => {
             const isActive = item.isActive(pathname);
 

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { AnimeComments } from "@/components/shared/AnimeComments";
 import { AnimeReviews } from "@/components/shared/AnimeReviews";
 import { AnimeWatchShell } from "@/components/shared/anime-watch-shell";
+import { WatchPartyRooms } from "@/components/shared/watch-party-rooms";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getImageUrl } from "@/lib/utils";
@@ -317,6 +318,10 @@ export default async function AnimePage({ params }: AnimePageProps) {
       <Suspense fallback={<AnimeSectionFallback label="Загрузка описания..." />}>
         <AnimeDetailsBlock animeId={numericId} />
       </Suspense>
+
+      <div className="pt-8 sm:pt-10">
+        <WatchPartyRooms animeId={numericId} />
+      </div>
 
       <div className="pt-8 sm:pt-10">
         <AnimeComments animeId={numericId} />

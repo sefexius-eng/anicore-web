@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ListTree } from "lucide-react";
 
 import { InteractivePlayer } from "@/components/shared/InteractivePlayer";
 import { WatchlistDropdown } from "@/components/shared/watchlist-dropdown";
@@ -49,6 +50,14 @@ export function WatchArea({
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
+          <Link
+            href={`/anime/${malId}/franchise`}
+            className="inline-flex items-center gap-2 rounded-lg border border-sky-300/20 bg-sky-400/10 px-4 py-2 text-sm font-medium text-sky-100 transition-colors hover:bg-sky-400/20"
+          >
+            <ListTree className="size-4" />
+            Франшиза
+          </Link>
+
           {seasonLinks.map((season) => {
             const seasonClasses = cn(
               "inline-flex items-center rounded-lg border border-white/10 px-4 py-2 text-sm font-medium transition-colors",

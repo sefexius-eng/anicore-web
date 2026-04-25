@@ -82,6 +82,14 @@ export function UserDropdown({ name, email }: UserDropdownProps) {
             Мой профиль
           </Link>
 
+          <Link
+            href="/notifications"
+            className="block px-4 py-2 text-sm text-white transition-colors hover:bg-[#3a3a3a]"
+            onClick={closeDropdown}
+          >
+            Уведомления
+          </Link>
+
           <button
             type="button"
             className="block w-full px-4 py-2 text-left text-sm text-white transition-colors hover:bg-[#3a3a3a]"
