@@ -8,6 +8,8 @@ const FEATURED_MAL_IDS = [61316, 51553, 59708, 56876, 62001] as const;
 
 interface AnimeShowcaseItem {
   id: number;
+  name: string;
+  russian?: string | null;
   title: string;
   image: {
     original?: string | null;

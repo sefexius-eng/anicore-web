@@ -1,9 +1,9 @@
-"use client";
-
 import { getPosterUrl, pickPosterUrl } from "@/lib/poster";
 
 export interface AnimeShowcaseItem {
   id: number;
+  name: string;
+  russian?: string | null;
   title: string;
   image: {
     original?: string | null;
@@ -23,6 +23,7 @@ export interface AnimeSearchParams {
 export interface AnimeDetailsItem extends AnimeShowcaseItem {
   synopsis: string;
   genres: string[];
+  genreIds: number[];
 }
 
 export interface AnimeFranchiseSeasonItem {
@@ -33,6 +34,7 @@ export interface AnimeFranchiseSeasonItem {
 }
 
 interface ShikimoriGenre {
+  id?: number | null;
   name?: string | null;
   russian?: string | null;
 }
@@ -51,7 +53,7 @@ interface ShikimoriFranchiseResponse {
   links?: unknown[];
 }
 
-interface ShikimoriAnimeResponse {
+export interface ShikimoriAnimeResponse {
   id: number;
   name: string;
   russian?: string | null;
@@ -70,6 +72,7 @@ interface ShikimoriAnimeResponse {
 
 const SHIKIMORI_API_ORIGIN = "https://shikimori.one";
 const SHIKIMORI_API_PATH = "/api";
+const SHIKIMORI_REVALIDATE_SECONDS = 60 * 60;
 const FALLBACK_POSTER = getPosterUrl("/assets/globals/missing_original.jpg");
 const RESTRICTED_GENRE_NAMES = new Set([
   "ecchi",
@@ -87,18 +90,62 @@ export class AdultContentBlockedError extends Error {
 
 interface ShikimoriFetchOptions {
   signal?: AbortSignal;
+  revalidate?: number;
 }
 
 function getShikimoriApiBaseUrl(): string {
   return `${SHIKIMORI_API_ORIGIN}${SHIKIMORI_API_PATH}`;
 }
 
-function getBrowserFetch(): typeof window.fetch {
+type ShikimoriRequestInit = RequestInit & {
+  next?: {
+    revalidate?: number;
+  };
+};
+
+async function fetchShikimoriJson<T>(
+  path: string,
+  options: ShikimoriFetchOptions = {},
+): Promise<T> {
+  const requestInit: ShikimoriRequestInit = {
+    method: "GET",
+    signal: options.signal,
+    headers: {
+      Accept: "application/json",
+    },
+  };
+
   if (typeof window === "undefined") {
-    throw new Error("Shikimori API requests must run in the browser.");
+    requestInit.next = {
+      revalidate: options.revalidate ?? SHIKIMORI_REVALIDATE_SECONDS,
+    };
+  } else {
+    requestInit.cache = "no-store";
   }
 
-  return window.fetch.bind(window);
+  const response = await fetch(`${getShikimoriApiBaseUrl()}${path}`, requestInit);
+
+  if (!response.ok) {
+    throw new Error(`Shikimori API request failed for ${path}: ${response.status}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+async function fetchShikimoriAnimeList(
+  path: string,
+  options: ShikimoriFetchOptions = {},
+): Promise<ShikimoriAnimeResponse[]> {
+  try {
+    const payload = await fetchShikimoriJson<ShikimoriAnimeResponse[]>(
+      path,
+      options,
+    );
+
+    return Array.isArray(payload) ? payload.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
 }
 
 function resolveImageUrl(path: string | null | undefined): string | null {
@@ -176,6 +223,16 @@ function resolveGenres(payload: ShikimoriAnimeResponse): string[] {
     .filter((genreName): genreName is string => genreName.length > 0);
 }
 
+function resolveGenreIds(payload: ShikimoriAnimeResponse): number[] {
+  if (!Array.isArray(payload.genres)) {
+    return [];
+  }
+
+  return payload.genres
+    .map((genre) => genre.id)
+    .filter((genreId): genreId is number => typeof genreId === "number");
+}
+
 function normalizeGenreName(name: string | null | undefined): string {
   return name?.trim().toLowerCase() ?? "";
 }
@@ -210,25 +267,16 @@ async function fetchAnimePayload(
   id: number,
   options: ShikimoriFetchOptions = {},
 ): Promise<ShikimoriAnimeResponse> {
-  const response = await getBrowserFetch()(`${getShikimoriApiBaseUrl()}/animes/${id}`, {
-    method: "GET",
-    cache: "no-store",
-    signal: options.signal,
-    headers: {
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Shikimori API request failed for ID ${id}: ${response.status}`);
-  }
-
-  return (await response.json()) as ShikimoriAnimeResponse;
+  return fetchShikimoriJson<ShikimoriAnimeResponse>(`/animes/${id}`, options);
 }
 
-function toAnimeShowcaseItem(payload: ShikimoriAnimeResponse): AnimeShowcaseItem {
+export function toAnimeShowcaseItem(
+  payload: ShikimoriAnimeResponse,
+): AnimeShowcaseItem {
   return {
     id: payload.id,
+    name: payload.name,
+    russian: payload.russian ?? null,
     title: resolveTitle(payload),
     image: payload.image
       ? {
@@ -263,7 +311,41 @@ export async function getAnimeDetailsById(
     ...toAnimeShowcaseItem(payload),
     synopsis: resolveSynopsis(payload),
     genres: resolveGenres(payload),
+    genreIds: resolveGenreIds(payload),
   };
+}
+
+export async function getPopularOngoing(
+  limit = 24,
+): Promise<ShikimoriAnimeResponse[]> {
+  const searchParams = new URLSearchParams({
+    status: "ongoing",
+    order: "popularity",
+    limit: String(limit),
+  });
+
+  return fetchShikimoriAnimeList(`/animes?${searchParams.toString()}`);
+}
+
+export async function getRecommendationsByGenres(
+  genreIds: string | number | Array<string | number>,
+  limit = 24,
+): Promise<ShikimoriAnimeResponse[]> {
+  const normalizedGenreIds = Array.isArray(genreIds)
+    ? genreIds.join(",")
+    : String(genreIds);
+
+  if (!normalizedGenreIds.trim()) {
+    return [];
+  }
+
+  const searchParams = new URLSearchParams({
+    genre: normalizedGenreIds,
+    order: "ranked",
+    limit: String(limit),
+  });
+
+  return fetchShikimoriAnimeList(`/animes?${searchParams.toString()}`);
 }
 
 export async function searchAnime(
@@ -300,23 +382,10 @@ export async function searchAnime(
     searchParams.set("season", season);
   }
 
-  const response = await getBrowserFetch()(
-    `${getShikimoriApiBaseUrl()}/animes?${searchParams.toString()}`,
-    {
-      method: "GET",
-      cache: "no-store",
-      signal: options.signal,
-      headers: {
-        Accept: "application/json",
-      },
-    },
+  const payload = await fetchShikimoriJson<ShikimoriAnimeResponse[]>(
+    `/animes?${searchParams.toString()}`,
+    options,
   );
-
-  if (!response.ok) {
-    throw new Error(`Shikimori search request failed: ${response.status}`);
-  }
-
-  const payload = (await response.json()) as ShikimoriAnimeResponse[];
 
   if (!Array.isArray(payload)) {
     return [];
@@ -345,20 +414,10 @@ export async function getAnimeFranchiseSeasons(
   id: number,
   options: ShikimoriFetchOptions = {},
 ): Promise<AnimeFranchiseSeasonItem[]> {
-  const response = await getBrowserFetch()(`${getShikimoriApiBaseUrl()}/animes/${id}/franchise`, {
-    method: "GET",
-    cache: "no-store",
-    signal: options.signal,
-    headers: {
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Shikimori franchise request failed for ID ${id}: ${response.status}`);
-  }
-
-  const payload = (await response.json()) as ShikimoriFranchiseResponse;
+  const payload = await fetchShikimoriJson<ShikimoriFranchiseResponse>(
+    `/animes/${id}/franchise`,
+    options,
+  );
   const tvNodes = Array.isArray(payload.nodes)
     ? payload.nodes
         .filter(

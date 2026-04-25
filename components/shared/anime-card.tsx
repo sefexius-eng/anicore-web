@@ -13,6 +13,13 @@ interface AnimeImage {
   url?: string | null;
 }
 
+interface AnimeImages {
+  jpg?: {
+    large_image_url?: string | null;
+    image_url?: string | null;
+  } | null;
+}
+
 interface AnimeTitle {
   type?: string | null;
   title?: string | null;
@@ -20,38 +27,49 @@ interface AnimeTitle {
 
 interface AnimeCardProps {
   id: number;
+  name?: string | null;
+  russian?: string | null;
   title: string;
   titles?: AnimeTitle[] | null;
   image?: AnimeImage | null;
+  images?: AnimeImages | null;
   image_url?: string | null;
   score: number | null;
   posterOverlay?: ReactNode;
 }
 
-const getRuTitle = (anime: Pick<AnimeCardProps, "title" | "titles">) => {
-  const ru = anime.titles?.find(
-    (title) =>
-      title.type === "Russian" ||
-      (title.type === "Synonym" &&
-        typeof title.title === "string" &&
-        /[А-Яа-яЁё]/.test(title.title)),
+function getPosterUrl(anime: Pick<AnimeCardProps, "image" | "image_url" | "images">) {
+  return getImageUrl(
+    anime.image?.original ??
+      anime.image?.preview ??
+      anime.image?.x160 ??
+      anime.image?.url ??
+      anime.image_url ??
+      anime.images?.jpg?.large_image_url ??
+      anime.images?.jpg?.image_url ??
+      null,
   );
-
-  return ru?.title?.trim() || anime.title;
-};
+}
 
 export function AnimeCard({
   id,
+  name,
+  russian,
   title,
-  titles,
   image,
+  images,
   image_url,
   score,
   posterOverlay,
 }: AnimeCardProps) {
-  const posterUrl = getImageUrl(image ?? image_url ?? null);
+  const anime = {
+    name,
+    russian,
+    title,
+  };
+  const posterUrl = getPosterUrl({ image, images, image_url });
   const formattedScore = score ?? "Нет";
-  const displayTitle = getRuTitle({ title, titles });
+  const displayTitle = anime.russian || anime.name || anime.title;
 
   const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
     const img = event.currentTarget;

@@ -6,80 +6,28 @@ import { AnimeCard } from "@/components/shared/anime-card";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizePositiveInteger } from "@/lib/profile-data";
-import { getImageUrl } from "@/lib/utils";
 import { formatTime } from "@/lib/watch-history";
+import { getAnimeById, type AnimeShowcaseItem } from "@/services/jikanApi";
 
 const HISTORY_LIMIT = 50;
-const JIKAN_BATCH_SIZE = 4;
-const JIKAN_REVALIDATE_SECONDS = 60 * 60 * 6;
+const SHIKIMORI_BATCH_SIZE = 4;
 
-interface JikanTitleEntry {
-  type?: string;
-  title?: string;
-}
-
-interface JikanAnimeEntry {
-  title?: string;
-  titles?: JikanTitleEntry[] | null;
-  score?: number | null;
-  images?: {
-    jpg?: {
-      large_image_url?: string | null;
-      image_url?: string | null;
-    };
-  };
-}
-
-interface JikanAnimeResponse {
-  data?: JikanAnimeEntry;
-}
-
-interface HistoryAnimeCardItem {
-  id: number;
-  title: string;
-  titles?: JikanTitleEntry[] | null;
-  image_url: string;
-  score: number | null;
+interface HistoryAnimeCardItem extends AnimeShowcaseItem {
   lastTime: number;
 }
 
 const getHistoryAnimeCard = cache(
   async (animeId: number): Promise<Omit<HistoryAnimeCardItem, "lastTime">> => {
     try {
-      const response = await fetch(`https://api.jikan.moe/v4/anime/${animeId}`, {
-        headers: {
-          Accept: "application/json",
-        },
-        next: {
-          revalidate: JIKAN_REVALIDATE_SECONDS,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Jikan request failed with status ${response.status}.`);
-      }
-
-      const payload = (await response.json()) as JikanAnimeResponse;
-      const anime = payload.data;
-
-      return {
-        id: animeId,
-        title: anime?.title?.trim() || `Anime #${animeId}`,
-        titles: anime?.titles ?? null,
-        image_url: getImageUrl(
-          anime?.images?.jpg?.large_image_url ?? anime?.images?.jpg?.image_url ?? null,
-        ),
-        score:
-          typeof anime?.score === "number" && Number.isFinite(anime.score)
-            ? anime.score
-            : null,
-      };
+      return await getAnimeById(animeId);
     } catch {
       return {
         id: animeId,
+        name: `Anime #${animeId}`,
+        russian: null,
         title: `Anime #${animeId}`,
-        titles: null,
-        image_url: getImageUrl(null),
+        image: null,
+        image_url: "",
         score: null,
       };
     }
@@ -96,8 +44,8 @@ async function loadHistoryAnimeMap(
   );
   const animeMap = new Map<number, Omit<HistoryAnimeCardItem, "lastTime">>();
 
-  for (let index = 0; index < uniqueIds.length; index += JIKAN_BATCH_SIZE) {
-    const batch = uniqueIds.slice(index, index + JIKAN_BATCH_SIZE);
+  for (let index = 0; index < uniqueIds.length; index += SHIKIMORI_BATCH_SIZE) {
+    const batch = uniqueIds.slice(index, index + SHIKIMORI_BATCH_SIZE);
     const batchItems = await Promise.all(
       batch.map((animeId) => getHistoryAnimeCard(animeId)),
     );
@@ -174,9 +122,11 @@ export default async function HistoryPage() {
             <AnimeCard
               key={item.id}
               id={item.id}
+              name={item.name}
+              russian={item.russian}
               title={item.title}
-              titles={item.titles}
               image_url={item.image_url}
+              image={item.image}
               score={item.score}
               posterOverlay={
                 <span className="inline-flex rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white shadow-lg ring-1 ring-white/10 backdrop-blur-sm sm:text-sm">

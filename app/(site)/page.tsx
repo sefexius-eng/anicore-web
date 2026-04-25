@@ -3,67 +3,21 @@ import { Suspense } from "react";
 import { AnimeCard } from "@/components/shared/anime-card";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getImageUrl } from "@/lib/utils";
+import {
+  getAnimeById,
+  getAnimeDetailsById,
+  getPopularOngoing,
+  getRecommendationsByGenres,
+  toAnimeShowcaseItem,
+  type AnimeShowcaseItem,
+} from "@/services/jikanApi";
 
 export const dynamic = "force-dynamic";
 
-const JIKAN_REVALIDATE_SECONDS = 60 * 60;
 const HOME_GRID_LIMIT = 18;
-const HOME_FETCH_LIMIT = 18;
+const HOME_FETCH_LIMIT = 24;
 
-interface JikanTitleEntry {
-  type?: string;
-  title?: string;
-}
-
-interface JikanAnimeEntry {
-  mal_id?: number;
-  title?: string;
-  title_english?: string | null;
-  titles?: JikanTitleEntry[] | null;
-  score?: number | null;
-  members?: number | null;
-  genres?: Array<{
-    mal_id?: number;
-  }> | null;
-  images?: {
-    jpg?: {
-      large_image_url?: string | null;
-    };
-  };
-}
-
-interface JikanAnimeResponse {
-  data?: JikanAnimeEntry;
-}
-
-interface JikanAnimeListResponse {
-  data?: JikanAnimeEntry[];
-}
-
-interface HomepageAnimeCardItem {
-  id: number;
-  title: string;
-  titles?: JikanTitleEntry[] | null;
-  image: {
-    original?: string | null;
-  } | null;
-  image_url: string;
-  score: number | null;
-}
-
-function getSafeAnimeList(data: JikanAnimeEntry[] | null | undefined): JikanAnimeEntry[] {
-  return Array.isArray(data)
-    ? data.filter((anime): anime is JikanAnimeEntry => Boolean(anime))
-    : [];
-}
-
-function deduplicateByMalId(animeList: JikanAnimeEntry[]): JikanAnimeEntry[] {
-  return animeList.filter(
-    (value, index, self) =>
-      index === self.findIndex((anime) => anime.mal_id === value.mal_id),
-  );
-}
+type HomepageAnimeCardItem = AnimeShowcaseItem;
 
 function getFranchiseKey(title: string | null | undefined): string {
   if (typeof title !== "string" || !title.trim()) {
@@ -84,13 +38,23 @@ function getFranchiseKey(title: string | null | undefined): string {
     .trim();
 }
 
-function deduplicateFranchises<T extends { title?: string | null; id?: number }>(
+function getAnimeTitle(anime: {
+  name?: string | null;
+  russian?: string | null;
+  title?: string | null;
+}): string {
+  return anime.russian?.trim() || anime.name?.trim() || anime.title?.trim() || "";
+}
+
+function deduplicateFranchises<
+  T extends { id?: number; name?: string | null; russian?: string | null; title?: string | null },
+>(
   animeList: T[],
 ): T[] {
   const seenFranchises = new Set<string>();
 
   return animeList.filter((anime, index) => {
-    const franchiseKey = getFranchiseKey(anime.title);
+    const franchiseKey = getFranchiseKey(getAnimeTitle(anime));
     const fallbackKey =
       typeof anime.id === "number" ? `anime-${anime.id}` : `anime-${index}`;
     const deduplicationKey = franchiseKey || fallbackKey;
@@ -104,152 +68,31 @@ function deduplicateFranchises<T extends { title?: string | null; id?: number }>
   });
 }
 
-function getBestTitle(anime: JikanAnimeEntry | undefined): string {
-  if (!anime) {
-    return "";
-  }
-
-  const russianTitle = anime.titles?.find(
-    (title) =>
-      title.type === "Russian" ||
-      title.type === "ru" ||
-      (typeof title.title === "string" && /[А-Яа-яЁё]/.test(title.title)),
-  );
-
-  if (russianTitle?.title?.trim()) {
-    return russianTitle.title.trim();
-  }
-
-  const englishTitle = anime.titles?.find(
-    (title) => title.type === "English" || title.type === "en",
-  );
-
-  if (englishTitle?.title?.trim()) {
-    return englishTitle.title.trim();
-  }
-
-  return anime.title_english?.trim() || anime.title?.trim() || "";
-}
-
-async function fetchJikanJson<T>(url: string): Promise<T | null> {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-      },
-      next: {
-        revalidate: JIKAN_REVALIDATE_SECONDS,
-      },
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return (await response.json()) as T;
-  } catch {
-    return null;
-  }
-}
-
 async function getRecommendedAnime(
   animeId: number,
 ): Promise<HomepageAnimeCardItem[]> {
-  const detailPayload = await fetchJikanJson<JikanAnimeResponse>(
-    `https://api.jikan.moe/v4/anime/${animeId}`,
-  );
-  const detailAnime = detailPayload?.data;
+  const detailAnime = await getAnimeDetailsById(animeId).catch(() => null);
+  const genreIds = detailAnime?.genreIds ?? [];
 
-  if (!detailAnime || !Array.isArray(detailAnime.genres)) {
+  if (genreIds.length === 0) {
     return [];
   }
-
-  const genreIds = detailAnime.genres
-    .map((genre) => genre.mal_id)
-    .filter((genreId): genreId is number => typeof genreId === "number")
-    .join(",");
-
-  if (!genreIds) {
-    return [];
-  }
-
-  const recommendationsPayload = await fetchJikanJson<JikanAnimeListResponse>(
-    `https://api.jikan.moe/v4/anime?genres=${genreIds}&order_by=members&sort=desc&type=tv&limit=${HOME_FETCH_LIMIT}`,
-  );
-  const recommendations = deduplicateByMalId(
-    getSafeAnimeList(recommendationsPayload?.data),
-  );
 
   return deduplicateFranchises(
-    recommendations
-      .map<HomepageAnimeCardItem | null>((anime) => {
-        const id = anime.mal_id;
-        const title = getBestTitle(anime);
-        const imageUrl = getImageUrl(anime.images?.jpg?.large_image_url ?? null);
-
-        if (
-          typeof id !== "number" ||
-          !Number.isInteger(id) ||
-          id === animeId ||
-          !title
-        ) {
-          return null;
-        }
-
-        return {
-          id,
-          title,
-          titles: anime.titles ?? null,
-          image: {
-            original: imageUrl,
-          },
-          image_url: imageUrl,
-          score:
-            typeof anime.score === "number" && Number.isFinite(anime.score)
-              ? anime.score
-              : null,
-        };
-      })
-      .filter((anime): anime is HomepageAnimeCardItem => anime !== null),
-  ).slice(0, HOME_GRID_LIMIT);
+    (await getRecommendationsByGenres(genreIds, HOME_FETCH_LIMIT)).filter(
+      (anime) => anime.id !== animeId,
+    ),
+  )
+    .map(toAnimeShowcaseItem)
+    .slice(0, HOME_GRID_LIMIT);
 }
 
 async function getPopularAnime(): Promise<HomepageAnimeCardItem[]> {
-  const payload = await fetchJikanJson<JikanAnimeListResponse>(
-    `https://api.jikan.moe/v4/seasons/now?sfw=true&limit=${HOME_FETCH_LIMIT}`,
-  );
+  const popularAnime = await getPopularOngoing(HOME_FETCH_LIMIT);
 
-  const popularAnime = [...getSafeAnimeList(payload?.data)].sort(
-    (left, right) => (right.members ?? 0) - (left.members ?? 0),
-  );
-
-  return deduplicateFranchises(
-    deduplicateByMalId(popularAnime)
-      .map<HomepageAnimeCardItem | null>((anime) => {
-        const id = anime.mal_id;
-        const title = getBestTitle(anime);
-        const imageUrl = getImageUrl(anime.images?.jpg?.large_image_url ?? null);
-
-        if (typeof id !== "number" || !Number.isInteger(id) || !title) {
-          return null;
-        }
-
-        return {
-          id,
-          title,
-          titles: anime.titles ?? null,
-          image: {
-            original: imageUrl,
-          },
-          image_url: imageUrl,
-          score:
-            typeof anime.score === "number" && Number.isFinite(anime.score)
-              ? anime.score
-              : null,
-        };
-      })
-      .filter((anime): anime is HomepageAnimeCardItem => anime !== null),
-  ).slice(0, HOME_GRID_LIMIT);
+  return deduplicateFranchises(popularAnime)
+    .map(toAnimeShowcaseItem)
+    .slice(0, HOME_GRID_LIMIT);
 }
 
 async function getAniMirokUserPicks(): Promise<HomepageAnimeCardItem[]> {
@@ -279,29 +122,24 @@ async function getAniMirokUserPicks(): Promise<HomepageAnimeCardItem[]> {
       index === self.findIndex((entry) => entry.animeId === review.animeId),
   );
 
-  const picks = await Promise.all(
+  const picks: Array<HomepageAnimeCardItem | null> = await Promise.all(
     uniqueHighReviews.slice(0, HOME_FETCH_LIMIT).map(async (review) => {
-      const payload = await fetchJikanJson<JikanAnimeResponse>(
-        `https://api.jikan.moe/v4/anime/${review.animeId}`,
-      );
-      const anime = payload?.data;
-      const title = getBestTitle(anime) || `Anime #${review.animeId}`;
-      const imageUrl = getImageUrl(anime?.images?.jpg?.large_image_url ?? null);
+      const anime = await getAnimeById(review.animeId).catch(() => null);
+
+      if (!anime) {
+        return null;
+      }
 
       return {
-        id: review.animeId,
-        title,
-        titles: anime?.titles ?? null,
-        image: {
-          original: imageUrl,
-        },
-        image_url: imageUrl,
+        ...anime,
         score: review.rating,
       };
     }),
   );
 
-  return deduplicateFranchises(picks).slice(0, HOME_GRID_LIMIT);
+  return deduplicateFranchises(
+    picks.filter((anime): anime is HomepageAnimeCardItem => anime !== null),
+  ).slice(0, HOME_GRID_LIMIT);
 }
 
 function SectionFallback({ label }: { label: string }) {
@@ -327,8 +165,9 @@ function AnimeGrid({ items }: { items: HomepageAnimeCardItem[] }) {
         <AnimeCard
           key={anime.id}
           id={anime.id}
+          name={anime.name}
+          russian={anime.russian}
           title={anime.title}
-          titles={anime.titles}
           image={anime.image}
           image_url={anime.image_url}
           score={anime.score}
