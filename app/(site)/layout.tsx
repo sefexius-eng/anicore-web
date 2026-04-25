@@ -19,11 +19,11 @@ export default function SiteLayout({ children }: SiteLayoutProps) {
         <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="mx-auto flex w-full max-w-[1336px] flex-1 flex-col px-4 pb-10 pt-6 sm:px-6 lg:px-8">
-            <main className="min-w-0 flex-1">{children}</main>
-            <div className="pt-10">
-              <Footer />
-            </div>
+          <main className="w-full min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+            {children}
+          </main>
+          <div className="px-4 pb-10 sm:px-6 lg:px-8">
+            <Footer />
           </div>
         </div>
       </div>

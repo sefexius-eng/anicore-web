@@ -8,11 +8,8 @@ import { getImageUrl } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 const JIKAN_REVALIDATE_SECONDS = 60 * 60;
-const POPULAR_GRID_LIMIT = 8;
-const RECOMMENDATIONS_GRID_LIMIT = 12;
-const RECOMMENDATIONS_FETCH_LIMIT = 18;
-const USER_PICKS_GRID_LIMIT = 8;
-const USER_PICKS_FETCH_LIMIT = 18;
+const HOME_GRID_LIMIT = 24;
+const HOME_FETCH_LIMIT = 30;
 
 interface JikanTitleEntry {
   type?: string;
@@ -59,6 +56,36 @@ function deduplicateByMalId(animeList: JikanAnimeEntry[]): JikanAnimeEntry[] {
     (value, index, self) =>
       index === self.findIndex((anime) => anime.mal_id === value.mal_id),
   );
+}
+
+function getFranchiseKey(title: string): string {
+  const normalizedTitle = title
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+  const [baseTitle] = normalizedTitle.split(
+    /\s(?:season|part)\b|\b\d+(?:st|nd|rd|th)\b|:|\s-\s|-/i,
+  );
+
+  return (baseTitle || normalizedTitle)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+function deduplicateFranchises<T extends { title: string }>(animeList: T[]): T[] {
+  const seenFranchises = new Set<string>();
+
+  return animeList.filter((anime) => {
+    const franchiseKey = getFranchiseKey(anime.title) || anime.title.toLowerCase();
+
+    if (seenFranchises.has(franchiseKey)) {
+      return false;
+    }
+
+    seenFranchises.add(franchiseKey);
+    return true;
+  });
 }
 
 function getBestTitle(anime: JikanAnimeEntry | undefined): string {
@@ -131,47 +158,48 @@ async function getRecommendedAnime(
   }
 
   const recommendationsPayload = await fetchJikanJson<JikanAnimeListResponse>(
-    `https://api.jikan.moe/v4/anime?genres=${genreIds}&order_by=members&sort=desc&type=tv&limit=${RECOMMENDATIONS_FETCH_LIMIT}`,
+    `https://api.jikan.moe/v4/anime?genres=${genreIds}&order_by=members&sort=desc&type=tv&limit=${HOME_FETCH_LIMIT}`,
   );
   const recommendations = Array.isArray(recommendationsPayload?.data)
     ? deduplicateByMalId(recommendationsPayload.data)
     : [];
 
-  return recommendations
-    .map<HomepageAnimeCardItem | null>((anime) => {
-      const id = anime.mal_id;
-      const title = getBestTitle(anime);
-      const imageUrl = getImageUrl(anime.images?.jpg?.large_image_url ?? null);
+  return deduplicateFranchises(
+    recommendations
+      .map<HomepageAnimeCardItem | null>((anime) => {
+        const id = anime.mal_id;
+        const title = getBestTitle(anime);
+        const imageUrl = getImageUrl(anime.images?.jpg?.large_image_url ?? null);
 
-      if (
-        typeof id !== "number" ||
-        !Number.isInteger(id) ||
-        id === animeId ||
-        !title
-      ) {
-        return null;
-      }
+        if (
+          typeof id !== "number" ||
+          !Number.isInteger(id) ||
+          id === animeId ||
+          !title
+        ) {
+          return null;
+        }
 
-      return {
-        id,
-        title,
-        image: {
-          original: imageUrl,
-        },
-        image_url: imageUrl,
-        score:
-          typeof anime.score === "number" && Number.isFinite(anime.score)
-            ? anime.score
-            : null,
-      };
-    })
-    .filter((anime): anime is HomepageAnimeCardItem => anime !== null)
-    .slice(0, RECOMMENDATIONS_GRID_LIMIT);
+        return {
+          id,
+          title,
+          image: {
+            original: imageUrl,
+          },
+          image_url: imageUrl,
+          score:
+            typeof anime.score === "number" && Number.isFinite(anime.score)
+              ? anime.score
+              : null,
+        };
+      })
+      .filter((anime): anime is HomepageAnimeCardItem => anime !== null),
+  ).slice(0, HOME_GRID_LIMIT);
 }
 
 async function getPopularAnime(): Promise<HomepageAnimeCardItem[]> {
   const payload = await fetchJikanJson<JikanAnimeListResponse>(
-    `https://api.jikan.moe/v4/seasons/now?sfw=true&limit=${POPULAR_GRID_LIMIT}`,
+    `https://api.jikan.moe/v4/seasons/now?sfw=true&limit=${HOME_FETCH_LIMIT}`,
   );
 
   const popularAnime = Array.isArray(payload?.data)
@@ -180,31 +208,32 @@ async function getPopularAnime(): Promise<HomepageAnimeCardItem[]> {
       )
     : [];
 
-  return deduplicateByMalId(popularAnime)
-    .slice(0, POPULAR_GRID_LIMIT)
-    .map<HomepageAnimeCardItem | null>((anime) => {
-      const id = anime.mal_id;
-      const title = getBestTitle(anime);
-      const imageUrl = getImageUrl(anime.images?.jpg?.large_image_url ?? null);
+  return deduplicateFranchises(
+    deduplicateByMalId(popularAnime)
+      .map<HomepageAnimeCardItem | null>((anime) => {
+        const id = anime.mal_id;
+        const title = getBestTitle(anime);
+        const imageUrl = getImageUrl(anime.images?.jpg?.large_image_url ?? null);
 
-      if (typeof id !== "number" || !Number.isInteger(id) || !title) {
-        return null;
-      }
+        if (typeof id !== "number" || !Number.isInteger(id) || !title) {
+          return null;
+        }
 
-      return {
-        id,
-        title,
-        image: {
-          original: imageUrl,
-        },
-        image_url: imageUrl,
-        score:
-          typeof anime.score === "number" && Number.isFinite(anime.score)
-            ? anime.score
-            : null,
-      };
-    })
-    .filter((anime): anime is HomepageAnimeCardItem => anime !== null);
+        return {
+          id,
+          title,
+          image: {
+            original: imageUrl,
+          },
+          image_url: imageUrl,
+          score:
+            typeof anime.score === "number" && Number.isFinite(anime.score)
+              ? anime.score
+              : null,
+        };
+      })
+      .filter((anime): anime is HomepageAnimeCardItem => anime !== null),
+  ).slice(0, HOME_GRID_LIMIT);
 }
 
 async function getAniMirokUserPicks(): Promise<HomepageAnimeCardItem[]> {
@@ -222,7 +251,7 @@ async function getAniMirokUserPicks(): Promise<HomepageAnimeCardItem[]> {
         rating: "desc",
       },
     ],
-    take: USER_PICKS_FETCH_LIMIT,
+    take: HOME_FETCH_LIMIT,
     select: {
       animeId: true,
       rating: true,
@@ -235,7 +264,7 @@ async function getAniMirokUserPicks(): Promise<HomepageAnimeCardItem[]> {
   );
 
   const picks = await Promise.all(
-    uniqueHighReviews.slice(0, USER_PICKS_GRID_LIMIT).map(async (review) => {
+    uniqueHighReviews.slice(0, HOME_FETCH_LIMIT).map(async (review) => {
       const payload = await fetchJikanJson<JikanAnimeResponse>(
         `https://api.jikan.moe/v4/anime/${review.animeId}`,
       );
@@ -255,7 +284,7 @@ async function getAniMirokUserPicks(): Promise<HomepageAnimeCardItem[]> {
     }),
   );
 
-  return picks;
+  return deduplicateFranchises(picks).slice(0, HOME_GRID_LIMIT);
 }
 
 function SectionFallback({ label }: { label: string }) {
@@ -268,7 +297,7 @@ function SectionFallback({ label }: { label: string }) {
 
 function AnimeGrid({ items }: { items: HomepageAnimeCardItem[] }) {
   return (
-    <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
       {items.map((anime) => (
         <AnimeCard
           key={anime.id}
@@ -304,16 +333,10 @@ async function RecommendationsBlock({ userId }: { userId: number }) {
   }
 
   return (
-    <section className="space-y-6">
-      <div className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Рекомендуем вам
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Подборка по жанрам вашего последнего просмотренного тайтла.
-        </p>
-      </div>
-
+    <section>
+      <h2 className="mb-4 text-2xl font-semibold tracking-tight text-foreground sm:mb-6 sm:text-3xl">
+        Рекомендуем вам
+      </h2>
       <AnimeGrid items={recommendations} />
     </section>
   );
@@ -323,16 +346,10 @@ async function PopularBlock() {
   const popularAnime = await getPopularAnime();
 
   return (
-    <section className="space-y-6">
-      <div className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Популярное сейчас
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Онгоинги сезона, которые уже собирают наибольший интерес.
-        </p>
-      </div>
-
+    <section>
+      <h2 className="mb-4 text-2xl font-semibold tracking-tight text-foreground sm:mb-6 sm:text-3xl">
+        Популярное сейчас
+      </h2>
       <AnimeGrid items={popularAnime} />
     </section>
   );
@@ -346,16 +363,10 @@ async function UserPicksBlock() {
   }
 
   return (
-    <section className="space-y-6">
-      <div className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Выбор пользователей AniMirok
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Тайтлы, которые пользователи AniMirok недавно оценили на 8/10 и выше.
-        </p>
-      </div>
-
+    <section>
+      <h2 className="mb-4 text-2xl font-semibold tracking-tight text-foreground sm:mb-6 sm:text-3xl">
+        Выбор пользователей AniMirok
+      </h2>
       <AnimeGrid items={picks} />
     </section>
   );
@@ -366,7 +377,7 @@ export default async function HomePage() {
   const sessionUserId = Number(session?.user?.id ?? Number.NaN);
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex w-full flex-col gap-10">
       <Suspense fallback={<SectionFallback label="Загрузка популярного..." />}>
         <PopularBlock />
       </Suspense>
@@ -377,7 +388,9 @@ export default async function HomePage() {
         </Suspense>
       ) : null}
 
-      <Suspense fallback={<SectionFallback label="Загрузка выбора пользователей..." />}>
+      <Suspense
+        fallback={<SectionFallback label="Загрузка выбора пользователей..." />}
+      >
         <UserPicksBlock />
       </Suspense>
     </div>

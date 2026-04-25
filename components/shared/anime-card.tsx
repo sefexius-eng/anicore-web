@@ -59,7 +59,7 @@ export function AnimeCard({
           />
 
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-            <div className="rounded-full bg-black/60 p-3 backdrop-blur-sm transition-transform duration-300 group-hover:scale-100 scale-75">
+            <div className="scale-75 rounded-full bg-black/60 p-3 backdrop-blur-sm transition-transform duration-300 group-hover:scale-100">
               <svg
                 className="h-8 w-8 fill-current text-white"
                 viewBox="0 0 24 24"
