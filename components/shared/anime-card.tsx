@@ -34,10 +34,10 @@ const getRuTitle = (anime: Pick<AnimeCardProps, "title" | "titles">) => {
       title.type === "Russian" ||
       (title.type === "Synonym" &&
         typeof title.title === "string" &&
-        /[А-Яа-я]/.test(title.title)),
+        /[А-Яа-яЁё]/.test(title.title)),
   );
 
-  return ru?.title || anime.title;
+  return ru?.title?.trim() || anime.title;
 };
 
 export function AnimeCard({
