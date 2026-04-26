@@ -8,7 +8,7 @@ import { AnimeWatchShell } from "@/components/shared/anime-watch-shell";
 import { WatchPartyRooms } from "@/components/shared/watch-party-rooms";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getImageUrl } from "@/lib/utils";
+import { IMAGE_PLACEHOLDER_URL, getImageUrl } from "@/lib/utils";
 
 const ANIME_REVALIDATE_SECONDS = 60 * 60;
 
@@ -46,6 +46,23 @@ interface AnimeDetailsItem {
   episodes: number | null;
   image_url: string;
   score: number | null;
+}
+
+interface JikanAnimeImages {
+  webp?: {
+    large_image_url?: string | null;
+  } | null;
+  jpg?: {
+    large_image_url?: string | null;
+  } | null;
+}
+
+interface JikanAnimeEntry {
+  images?: JikanAnimeImages | null;
+}
+
+interface JikanAnimeResponse {
+  data?: JikanAnimeEntry | null;
 }
 
 interface AnimeWatchProgress {
@@ -133,6 +150,25 @@ const getAnimeDetails = cache(async (animeId: number): Promise<AnimeDetailsItem>
   };
 });
 
+const getJikanAnime = cache(async (animeId: number): Promise<JikanAnimeEntry> => {
+  const response = await fetch(`https://api.jikan.moe/v4/anime/${animeId}`, {
+    headers: {
+      Accept: "application/json",
+    },
+    next: {
+      revalidate: ANIME_REVALIDATE_SECONDS,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Jikan request failed with status ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as JikanAnimeResponse;
+
+  return payload.data ?? {};
+});
+
 export async function generateMetadata({
   params,
 }: AnimePageProps): Promise<Metadata> {
@@ -175,6 +211,16 @@ async function getAnimeDetailsSafely(animeId: number) {
     return await getAnimeDetails(animeId);
   } catch {
     return null;
+  }
+}
+
+async function getJikanAnimeSafely(
+  animeId: number,
+): Promise<JikanAnimeEntry> {
+  try {
+    return await getJikanAnime(animeId);
+  } catch {
+    return {};
   }
 }
 
@@ -251,7 +297,10 @@ async function AnimeWatchBlock({ animeId }: { animeId: number }) {
 }
 
 async function AnimeDetailsBlock({ animeId }: { animeId: number }) {
-  const anime = await getAnimeDetailsSafely(animeId);
+  const [anime, jikanAnime] = await Promise.all([
+    getAnimeDetailsSafely(animeId),
+    getJikanAnimeSafely(animeId),
+  ]);
 
   if (!anime) {
     return <AnimeSectionError label="Не удалось загрузить описание тайтла." />;
@@ -263,7 +312,11 @@ async function AnimeDetailsBlock({ animeId }: { animeId: number }) {
         <div className="mx-auto w-full max-w-[250px] shrink-0 sm:max-w-[300px]">
           <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl border border-[#282828] bg-muted/20 shadow-lg">
             <Image
-              src={anime.image_url}
+              src={
+                jikanAnime.images?.webp?.large_image_url ||
+                jikanAnime.images?.jpg?.large_image_url ||
+                IMAGE_PLACEHOLDER_URL
+              }
               alt={anime.title}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 250px, 300px"

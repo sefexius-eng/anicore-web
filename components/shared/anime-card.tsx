@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import type { ReactNode, SyntheticEvent } from "react";
 import Link from "next/link";
+import { Star } from "lucide-react";
 
 import { IMAGE_PLACEHOLDER_URL } from "@/lib/utils";
 
@@ -47,7 +48,6 @@ export function AnimeCard({
     images?.webp?.large_image_url ||
     images?.jpg?.large_image_url ||
     IMAGE_PLACEHOLDER_URL;
-  const formattedScore = score ?? "Нет";
   const displayTitle = russian_title || title;
 
   const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
@@ -66,6 +66,11 @@ export function AnimeCard({
             referrerPolicy="no-referrer"
             onError={handleImageError}
           />
+
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-xs font-bold text-white backdrop-blur-md">
+            <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+            {score ?? "N/A"}
+          </div>
 
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <div className="scale-75 rounded-full bg-black/60 p-3 backdrop-blur-sm transition-transform duration-300 group-hover:scale-100">
@@ -88,12 +93,11 @@ export function AnimeCard({
 
         <div>
           <h3
-            className="line-clamp-2 text-sm font-semibold text-white transition-colors group-hover:text-blue-400"
+            className="font-bold text-[15px] sm:text-base leading-snug line-clamp-2 mt-3 tracking-wide text-white transition-colors group-hover:text-blue-400"
             title={displayTitle}
           >
             {displayTitle}
           </h3>
-          <p className="text-xs text-gray-400">Оценка: {formattedScore}</p>
         </div>
       </div>
     </Link>
