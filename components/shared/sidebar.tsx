@@ -59,10 +59,10 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="sticky top-[72px] hidden h-[calc(100vh-72px)] w-64 flex-shrink-0 flex-col overflow-y-auto bg-transparent pb-8 pt-4 lg:flex">
+      <aside className="sticky top-[72px] z-40 hidden h-[calc(100vh-72px)] w-[72px] flex-shrink-0 flex-col overflow-visible bg-transparent pb-8 pt-4 lg:flex">
         <nav
-          aria-label="\u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0435 \u043c\u0435\u043d\u044e"
-          className="flex flex-1 flex-col gap-1 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          aria-label="Основное меню"
+          className="flex flex-1 flex-col items-center gap-1 px-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
           {navigationItems.map((item) => {
             const isActive = item.isActive(pathname);
@@ -71,16 +71,22 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors",
+                  "group relative flex h-12 w-full items-center justify-center rounded-xl px-0 py-0 transition-colors",
                   isActive
                     ? "bg-white/10 text-white font-medium"
                     : "text-white/70 hover:bg-white/5 hover:text-white",
                 )}
               >
                 <item.Icon className="size-5 shrink-0" />
-                <span>{item.label}</span>
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg border border-white/10 bg-slate-950/95 px-3 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg shadow-black/30 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+                >
+                  {item.label}
+                </span>
               </Link>
             );
           })}
