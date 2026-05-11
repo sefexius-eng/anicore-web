@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { WatchArea, type WatchAreaSeasonLink } from "@/components/shared/WatchArea";
 import type { WatchHistoryItem } from "@/lib/watch-history";
@@ -15,6 +15,7 @@ interface AnimeWatchShellProps {
     lastTime: number;
     totalAvailable: number | null;
   } | null;
+  children?: ReactNode;
 }
 
 interface AnimeFranchiseSeasonItem {
@@ -92,6 +93,7 @@ export function AnimeWatchShell({
   episodesTotal,
   history,
   progress,
+  children,
 }: AnimeWatchShellProps) {
   const [franchiseSeasons, setFranchiseSeasons] = useState<
     AnimeFranchiseSeasonItem[]
@@ -150,6 +152,8 @@ export function AnimeWatchShell({
       history={history}
       episodesTotal={episodesTotal}
       progress={progress}
-    />
+    >
+      {children}
+    </WatchArea>
   );
 }

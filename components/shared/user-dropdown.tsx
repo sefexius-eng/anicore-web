@@ -53,13 +53,13 @@ export function UserDropdown({ name, email }: UserDropdownProps) {
   };
 
   return (
-    <div ref={dropdownRef} className="relative">
+    <div ref={dropdownRef} className="relative flex items-center">
       <button
         type="button"
         aria-expanded={isOpen}
         aria-haspopup="menu"
         aria-label="Открыть меню профиля"
-        className="rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="flex size-9 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
         onClick={handleToggle}
       >
         <UserAvatar userLabel={userName} />

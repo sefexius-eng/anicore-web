@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ListTree } from "lucide-react";
 
@@ -25,6 +26,7 @@ interface WatchAreaProps {
     lastTime: number;
     totalAvailable: number | null;
   } | null;
+  children?: ReactNode;
 }
 
 type WatchAreaHistory = Pick<WatchHistoryItem, "id" | "name" | "image">;
@@ -35,6 +37,7 @@ export function WatchArea({
   history,
   episodesTotal,
   progress,
+  children,
 }: WatchAreaProps) {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col">
@@ -49,7 +52,7 @@ export function WatchArea({
           <WatchlistDropdown animeId={malId} />
         </div>
 
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/anime/${malId}/franchise`}
             className="inline-flex items-center gap-2 rounded-lg border border-sky-300/20 bg-sky-400/10 px-4 py-2 text-sm font-medium text-sky-100 transition-colors hover:bg-sky-400/20"
@@ -90,6 +93,8 @@ export function WatchArea({
             );
           })}
         </div>
+
+        {children}
 
         <InteractivePlayer
           malId={malId}

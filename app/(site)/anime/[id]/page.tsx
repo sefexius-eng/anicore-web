@@ -1,4 +1,4 @@
-import { Suspense, cache } from "react";
+import { Suspense, cache, type ReactNode } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 
@@ -269,7 +269,13 @@ function AnimeSectionError({ label }: { label: string }) {
   );
 }
 
-async function AnimeWatchBlock({ animeId }: { animeId: number }) {
+async function AnimeWatchBlock({
+  animeId,
+  children,
+}: {
+  animeId: number;
+  children?: ReactNode;
+}) {
   const [anime, progress] = await Promise.all([
     getAnimeDetailsSafely(animeId),
     getAnimeWatchProgress(animeId),
@@ -291,7 +297,9 @@ async function AnimeWatchBlock({ animeId }: { animeId: number }) {
           image: anime.image_url,
         }}
         progress={progress}
-      />
+      >
+        {children}
+      </AnimeWatchShell>
     </section>
   );
 }
@@ -365,11 +373,11 @@ export default async function AnimePage({ params }: AnimePageProps) {
   return (
     <section className="space-y-6">
       <Suspense fallback={<AnimeSectionFallback label="Загрузка плеера..." />}>
-        <AnimeWatchBlock animeId={numericId} />
-      </Suspense>
-
-      <Suspense fallback={<AnimeSectionFallback label="Загрузка описания..." />}>
-        <AnimeDetailsBlock animeId={numericId} />
+        <AnimeWatchBlock animeId={numericId}>
+          <Suspense fallback={<AnimeSectionFallback label="Загрузка описания..." />}>
+            <AnimeDetailsBlock animeId={numericId} />
+          </Suspense>
+        </AnimeWatchBlock>
       </Suspense>
 
       <div className="pt-8 sm:pt-10">

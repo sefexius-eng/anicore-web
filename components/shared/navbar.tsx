@@ -26,7 +26,7 @@ export async function NavbarShell() {
           <NavbarSearch />
         </div>
 
-        <div className="flex min-w-0 items-center justify-end gap-2">
+        <div className="flex h-full min-w-0 items-center justify-end gap-2">
           {session ? (
             <>
               <Link
@@ -34,7 +34,7 @@ export async function NavbarShell() {
                 aria-label="\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f"
                 className={cn(
                   buttonVariants({ variant: "ghost", size: "icon-lg" }),
-                  "rounded-full border border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/10 hover:text-white",
+                  "self-center rounded-full border border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/10 hover:text-white",
                 )}
               >
                 <Bell className="size-5" />
